@@ -2,7 +2,7 @@
 Contributors: ja1me4
 Tags: performance, cache, cookies, gdpr, assets
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.0.1
 Requires PHP: 7.4
 Stable tag: 1.0.0
 License: GPL-2.0-or-later
