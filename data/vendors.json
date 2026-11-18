@@ -1,0 +1,266 @@
+{
+    "google-analytics.com": [
+        "Google Analytics",
+        "analytics"
+    ],
+    "googletagmanager.com": [
+        "Google Tag Manager",
+        "analytics"
+    ],
+    "hotjar.com": [
+        "Hotjar",
+        "analytics"
+    ],
+    "cloudflareinsights.com": [
+        "Cloudflare Analytics",
+        "analytics"
+    ],
+    "clarity.ms": [
+        "Microsoft Clarity",
+        "analytics"
+    ],
+    "segment.com": [
+        "Segment",
+        "analytics"
+    ],
+    "mixpanel.com": [
+        "Mixpanel",
+        "analytics"
+    ],
+    "plausible.io": [
+        "Plausible",
+        "analytics"
+    ],
+    "googlesyndication.com": [
+        "Google Ads",
+        "marketing"
+    ],
+    "doubleclick.net": [
+        "Google DoubleClick",
+        "marketing"
+    ],
+    "facebook.net": [
+        "Facebook/Meta Pixel",
+        "marketing"
+    ],
+    "connect.facebook.net": [
+        "Facebook SDK",
+        "marketing"
+    ],
+    "facebook.com": [
+        "Facebook/Meta",
+        "marketing"
+    ],
+    "ads.linkedin.com": [
+        "LinkedIn Ads",
+        "marketing"
+    ],
+    "snap.licdn.com": [
+        "LinkedIn",
+        "marketing"
+    ],
+    "static.ads-twitter.com": [
+        "Twitter Ads",
+        "marketing"
+    ],
+    "klaviyo.com": [
+        "Klaviyo",
+        "marketing"
+    ],
+    "hs-scripts.com": [
+        "HubSpot",
+        "marketing"
+    ],
+    "hubspot.com": [
+        "HubSpot",
+        "marketing"
+    ],
+    "js.stripe.com": [
+        "Stripe",
+        "payment"
+    ],
+    "stripe.com": [
+        "Stripe",
+        "payment"
+    ],
+    "stripe.network": [
+        "Stripe Network",
+        "payment"
+    ],
+    "paypal.com": [
+        "PayPal",
+        "payment"
+    ],
+    "paypalobjects.com": [
+        "PayPal",
+        "payment"
+    ],
+    "braintreegateway.com": [
+        "Braintree",
+        "payment"
+    ],
+    "cookiebot.com": [
+        "Cookiebot",
+        "consent"
+    ],
+    "cookiehub.com": [
+        "CookieHub",
+        "consent"
+    ],
+    "cookieyes.com": [
+        "CookieYes",
+        "consent"
+    ],
+    "iubenda.com": [
+        "iubenda",
+        "consent"
+    ],
+    "onetrust.com": [
+        "OneTrust",
+        "consent"
+    ],
+    "trustarc.com": [
+        "TrustArc",
+        "consent"
+    ],
+    "usercentrics.eu": [
+        "Usercentrics",
+        "consent"
+    ],
+    "cloudflare.com": [
+        "Cloudflare",
+        "cdn"
+    ],
+    "cdn.jsdelivr.net": [
+        "jsDelivr CDN",
+        "cdn"
+    ],
+    "cdnjs.cloudflare.com": [
+        "cdnjs",
+        "cdn"
+    ],
+    "unpkg.com": [
+        "unpkg CDN",
+        "cdn"
+    ],
+    "amazonaws.com": [
+        "Amazon AWS",
+        "cdn"
+    ],
+    "cloudfront.net": [
+        "Amazon CloudFront",
+        "cdn"
+    ],
+    "b-cdn.net": [
+        "Bunny CDN",
+        "cdn"
+    ],
+    "bunny.net": [
+        "Bunny CDN",
+        "cdn"
+    ],
+    "wp.com": [
+        "WordPress.com",
+        "cdn"
+    ],
+    "gravatar.com": [
+        "Gravatar",
+        "cdn"
+    ],
+    "googleapis.com": [
+        "Google APIs",
+        "cdn"
+    ],
+    "gstatic.com": [
+        "Google Static CDN",
+        "cdn"
+    ],
+    "intercom.io": [
+        "Intercom",
+        "chat"
+    ],
+    "intercomcdn.com": [
+        "Intercom CDN",
+        "chat"
+    ],
+    "crisp.chat": [
+        "Crisp",
+        "chat"
+    ],
+    "client.crisp.chat": [
+        "Crisp",
+        "chat"
+    ],
+    "tawk.to": [
+        "Tawk.to",
+        "chat"
+    ],
+    "tidio.co": [
+        "Tidio",
+        "chat"
+    ],
+    "zendesk.com": [
+        "Zendesk",
+        "chat"
+    ],
+    "zdassets.com": [
+        "Zendesk Assets",
+        "chat"
+    ],
+    "recaptcha.net": [
+        "Google reCAPTCHA",
+        "security"
+    ],
+    "hcaptcha.com": [
+        "hCaptcha",
+        "security"
+    ],
+    "youtube.com": [
+        "YouTube",
+        "media"
+    ],
+    "youtube-nocookie.com": [
+        "YouTube (no-cookie)",
+        "media"
+    ],
+    "vimeo.com": [
+        "Vimeo",
+        "media"
+    ],
+    "player.vimeo.com": [
+        "Vimeo Player",
+        "media"
+    ],
+    "twitch.tv": [
+        "Twitch",
+        "media"
+    ],
+    "twitter.com": [
+        "Twitter/X",
+        "social"
+    ],
+    "x.com": [
+        "X (Twitter)",
+        "social"
+    ],
+    "linkedin.com": [
+        "LinkedIn",
+        "social"
+    ],
+    "instagram.com": [
+        "Instagram",
+        "social"
+    ],
+    "pinterest.com": [
+        "Pinterest",
+        "social"
+    ],
+    "tiktok.com": [
+        "TikTok",
+        "social"
+    ],
+    "snapchat.com": [
+        "Snapchat",
+        "social"
+    ]
+}

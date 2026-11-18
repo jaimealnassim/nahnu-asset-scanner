@@ -10,6 +10,8 @@
 	// State
 	// -------------------------------------------------------------------------
 
+	const RESULT_TABS = [ 'js', 'css', 'cookies', 'domains' ];
+
 	const FAS = {
 		currentTab:   'pages',
 		tabLoaded:    {},           // { js: bool, css: bool, … }
@@ -36,12 +38,38 @@
 		bindSearchInputs();
 		bindFilterSelects();
 
+		bindCopyButtons();
+		TestLab.init();
+
 		// Always boot the Pages picker tab on load
 		PagePicker.init();
 
-
-
+		// Deep links such as #test (used by the front-end panel).
+		const hashTab = window.location.hash.replace( '#', '' );
+		if ( hashTab && document.querySelector( '.fas-tab-btn[data-tab="' + hashTab + '"]' ) ) {
+			switchTab( hashTab );
+		}
 	} );
+
+	// One delegated listener for every copy button rendered into the tables.
+	function bindCopyButtons() {
+		document.addEventListener( 'click', function ( e ) {
+			const btn = e.target.closest( '.fas-copy-btn' );
+			if ( ! btn ) { return; }
+			e.preventDefault();
+			e.stopPropagation();
+			if ( ! navigator.clipboard ) { return; }
+			navigator.clipboard.writeText( btn.dataset.copy || '' ).then( function () {
+				const original = btn.textContent;
+				btn.textContent = '\u2713';
+				btn.classList.add( 'fas-copy-btn--ok' );
+				setTimeout( function () {
+					btn.textContent = original;
+					btn.classList.remove( 'fas-copy-btn--ok' );
+				}, 1200 );
+			} );
+		} );
+	}
 
 	// -------------------------------------------------------------------------
 	// Tab navigation
@@ -68,13 +96,11 @@
 			panel.classList.toggle( 'fas-panel--active', panel.dataset.panel === tab );
 		} );
 
-		// Load data tabs on first visit
-		if ( tab === 'pages' ) {
-			// nothing - PagePicker handles its own state
-		} else if ( tab !== 'settings' ) {
-			if ( ! FAS.tabLoaded[ tab ] ) {
-				loadTab( tab );
-			}
+		// Load result tabs on first visit.
+		if ( RESULT_TABS.indexOf( tab ) !== -1 && ! FAS.tabLoaded[ tab ] ) {
+			loadTab( tab );
+		} else if ( 'test' === tab ) {
+			TestLab.render();
 		}
 	}
 
@@ -142,10 +168,10 @@
 		switch ( tab ) {
 			case 'js':
 				return th('File URL') + th('Domain') + th('Source') + th('Defer') + th('Async') +
-				       th('Version') + th('Pages');
+				       th('Version') + th('Pages') + th( nahnuasData.strings.testColumn );
 			case 'css':
 				return th('File URL') + th('Domain') + th('Source') + th('Media') +
-				       th('Version') + th('Pages');
+				       th('Version') + th('Pages') + th( nahnuasData.strings.testColumn );
 			case 'cookies':
 				return th('Name') + th('Domain') + th('Source') + th('Session') +
 				       th('Expires') + th('Secure') + th('HttpOnly') + th('SameSite') +
@@ -205,7 +231,7 @@
 		const attrs   = safeJsonParse( item.attributes_json, {} );
 		const fileUrl = isInlineJs ? '' : formatFileUrl( item.asset_url, thirdParty );
 		const domainCell = thirdParty
-			? '<span class="fas-table__domain">' + escHtml( item.domain || '—' ) + '</span>' + badge + trackerTag( item )
+			? '<span class="fas-table__domain">' + escHtml( item.domain || '—' ) + '</span>' + badge
 			: '<span class="fas-tag fas-tag--first">1st-party</span>';
 
 		return td( '<span class="fas-table__url" title="' + escHtml( item.asset_url || '' ) + '">' + ( isInlineJs ? '<em style="color:#9CA3AF">Inline</em>' : fileUrl + copyBtn( item.asset_url ) ) + '</span>' ) +
@@ -214,7 +240,8 @@
 		       td( boolCheck( attrs.defer ) ) +
 		       td( boolCheck( attrs.async ) ) +
 		       td( escHtml( attrs.version || item.version || '—' ) ) +
-		       td( renderPagesList( item.pages ) );
+		       td( renderPagesList( item.pages ) ) +
+		       td( TestLab.select( 'js', item ) );
 	}
 
 	function renderCssRow( item ) {
@@ -228,7 +255,7 @@
 		const attrs   = safeJsonParse( item.attributes_json, {} );
 		const fileUrl = isInlineCss ? '' : formatFileUrl( item.asset_url, thirdParty );
 		const domainCell = thirdParty
-			? '<span class="fas-table__domain">' + escHtml( item.domain || '—' ) + '</span>' + badge + trackerTag( item )
+			? '<span class="fas-table__domain">' + escHtml( item.domain || '—' ) + '</span>' + badge
 			: '<span class="fas-tag fas-tag--first">1st-party</span>';
 
 		return td( '<span class="fas-table__url" title="' + escHtml( item.asset_url || '' ) + '">' + ( isInlineCss ? '<em style="color:#9CA3AF">Inline style</em>' : fileUrl + copyBtn( item.asset_url ) ) + '</span>' ) +
@@ -236,7 +263,8 @@
 		       td( source ) +
 		       td( escHtml( attrs.media || 'all' ) ) +
 		       td( escHtml( isInlineCss ? '—' : ( attrs.version || item.version || '—' ) ) ) +
-		       td( renderPagesList( item.pages ) );
+		       td( renderPagesList( item.pages ) ) +
+		       td( TestLab.select( 'css', item ) );
 	}
 
 	function renderCookieRow( item ) {
@@ -245,9 +273,9 @@
 		if ( thirdParty ) {
 			sourceCell = '<span class="fas-tag fas-tag--third">3rd-party</span>';
 		} else {
-			// plugin_source set by Plugin_Cookies (WP-specific) or OCD (commercial trackers)
-			const vendor = item.plugin_source || item.ocd_platform || guessCookiePlugin( item.cookie_name );
-			const desc   = item.cookie_description || item.ocd_description || '';
+			// plugin_source / cookie_description come from the bundled cookie database (server side).
+			const vendor = item.plugin_source || guessCookiePlugin( item.cookie_name );
+			const desc   = item.cookie_description || '';
 			sourceCell = vendor
 				? '<span class="fas-tag fas-tag--plugin" title="' + escHtml( desc ) + '">' + escHtml( vendor ) + '</span>'
 				: '<span class="fas-tag fas-tag--first">1st-party (plugin)</span>';
@@ -269,27 +297,15 @@
 		const thirdParty = isThirdPartyDomain( item.domain );
 		const badge = renderVendorBadge( item.badge );
 		const types = ( item.source_types || '' ).split( ',' )
+			.filter( function ( t ) { return t.trim() !== ''; } )
 			.map( function ( t ) { return '<span class="fas-tag fas-tag--inline">' + escHtml( t.trim() ) + '</span>'; } )
 			.join( ' ' );
 
-
-		if ( item.tracker_name ) {
-			const privLink = item.tracker_privacy
-				? ' <a href="' + escHtml( item.tracker_privacy ) + '" target="_blank" rel="noopener" style="color:#1D4ED8;font-size:11px;" title="Privacy policy">↗</a>'
-				: '';
-			trackerInfo = '<div class="fas-tracker-info">' +
-				'<span class="fas-tracker-name">' + escHtml( item.tracker_name ) + '</span>' +
-				( item.tracker_company ? ' <span class="fas-tracker-company">' + escHtml( item.tracker_company ) + '</span>' : '' ) +
-				( item.tracker_category ? ' <span class="fas-tag fas-tag--tracker">' + escHtml( item.tracker_category ) + '</span>' : '' ) +
-				privLink +
-				'</div>';
-		}
-
-		return td( '<strong class="fas-table__domain">' + escHtml( item.domain || '' ) + '</strong>' + badge + copyBtn( item.domain ) + trackerInfo ) +
+		return td( '<strong class="fas-table__domain">' + escHtml( item.domain || '' ) + '</strong>' + badge + copyBtn( item.domain ) ) +
 		       td( types ) +
 		       td( partyTag( thirdParty ) ) +
 		       td( renderPagesList( item.pages ) ) +
-		       td( escHtml( String( item.occurrences || 1 ) ) );
+		       td( escHtml( String( parseInt( item.item_count, 10 ) || 0 ) ) );
 	}
 
 	function isThirdPartyDomain( domain ) {
@@ -532,7 +548,13 @@
 		form.action  = nahnuasData.ajaxUrl;
 		form.style.display = 'none';
 
-		[ [ 'action', 'nahnuas_export_csv' ], [ 'tab', tab ], [ 'nahnuas_nonce', nahnuasData.nonce ] ]
+		[
+			[ 'action', 'nahnuas_export_csv' ],
+			[ 'tab', tab ],
+			[ 'nahnuas_nonce', nahnuasData.nonce ],
+			[ 'search', FAS.tabSearch[ tab ] || '' ],
+			[ 'third_party', FAS.tabFilter[ tab ] || '' ],
+		]
 			.forEach( function ( pair ) {
 				const input = document.createElement( 'input' );
 				input.type  = 'hidden';
@@ -616,6 +638,162 @@
 	}
 
 	// -------------------------------------------------------------------------
+	// Test Lab: rules shared with the front-end test panel
+	// -------------------------------------------------------------------------
+
+	const TestLab = {
+		rules: Object.assign( {}, nahnuasData.testRules || {} ),
+
+		init: function () {
+			const self = this;
+			document.addEventListener( 'change', function ( e ) {
+				if ( e.target.classList && e.target.classList.contains( 'fas-test-select' ) ) {
+					self.save( e.target.dataset.key, e.target.value );
+				}
+			} );
+			document.addEventListener( 'click', function ( e ) {
+				const btn = e.target.closest && e.target.closest( '.fas-lab-remove' );
+				if ( btn ) {
+					self.save( btn.dataset.key, '' );
+				}
+			} );
+			const clear = document.getElementById( 'fas-lab-clear' );
+			if ( clear ) {
+				clear.addEventListener( 'click', function () {
+					if ( ! Object.keys( self.rules ).length || ! window.confirm( nahnuasData.strings.confirmClearRules ) ) { return; }
+					fasAjax( 'nahnuas_test_save', { rules: '{}' } ).then( function ( res ) {
+						if ( res.success ) { self.update( res.data.rules ); }
+					} );
+				} );
+			}
+			const url = document.getElementById( 'fas-lab-url' );
+			const go  = document.getElementById( 'fas-lab-go' );
+			if ( url && go ) {
+				url.addEventListener( 'change', function () {
+					go.href = self.testUrl( url.value );
+				} );
+				go.href = self.testUrl( url.value );
+			}
+			this.updateCount();
+		},
+
+		testUrl: function ( base ) {
+			try {
+				const u = new URL( base );
+				u.searchParams.set( nahnuasData.testParam, '1' );
+				return u.toString();
+			} catch ( e ) {
+				return base;
+			}
+		},
+
+		// Same key format as Test_Mode::file_key(): kind, host and path.
+		key: function ( kind, url ) {
+			try {
+				const u = new URL( url );
+				return kind + ':' + u.hostname.toLowerCase() + ( u.pathname || '/' );
+			} catch ( e ) {
+				return '';
+			}
+		},
+
+		select: function ( kind, item ) {
+			if ( item.is_inline == 1 || ! item.asset_url ) {
+				return '<span class="fas-test-na" title="' + escHtml( nahnuasData.strings.testInline ) + '">—</span>';
+			}
+			const key  = this.key( kind, item.asset_url );
+			const cur  = this.rules[ key ] || '';
+			const opts = 'js' === kind ? [ '', 'defer', 'delay', 'off' ] : [ '', 'defer', 'off' ];
+			const s    = nahnuasData.strings;
+			const label = { '': s.testOn, defer: s.testDefer, delay: s.testDelay, off: s.testOff };
+			return '<select class="fas-test-select fas-test-select--' + ( cur || 'on' ) + '" data-key="' + escHtml( key ) + '" aria-label="' + escHtml( s.testColumn ) + '">' +
+				opts.map( function ( o ) {
+					return '<option value="' + o + '"' + ( o === cur ? ' selected' : '' ) + '>' + escHtml( label[ o ] ) + '</option>';
+				} ).join( '' ) + '</select>';
+		},
+
+		save: function ( key, action ) {
+			const self = this;
+			fasAjax( 'nahnuas_test_save', { key: key, test_action: action } ).then( function ( res ) {
+				if ( ! res.success ) { throw new Error( 'save' ); }
+				self.update( res.data.rules );
+				toast( action ? nahnuasData.strings.testSaved : nahnuasData.strings.testRemoved );
+			} ).catch( function () {
+				toast( nahnuasData.strings.networkError, true );
+			} );
+		},
+
+		update: function ( rules ) {
+			const self = this;
+			this.rules = Object.assign( {}, rules || {} );
+			document.querySelectorAll( '.fas-test-select' ).forEach( function ( sel ) {
+				const cur = self.rules[ sel.dataset.key ] || '';
+				sel.value = cur;
+				sel.className = 'fas-test-select fas-test-select--' + ( cur || 'on' );
+			} );
+			this.updateCount();
+			this.render();
+		},
+
+		updateCount: function () {
+			const n  = Object.keys( this.rules ).length;
+			const el = document.getElementById( 'fas-count-test' );
+			if ( el ) {
+				el.textContent = n;
+				el.hidden = ! n;
+			}
+		},
+
+		render: function () {
+			const wrap = document.getElementById( 'fas-lab-rules' );
+			if ( ! wrap ) { return; }
+			const s    = nahnuasData.strings;
+			const keys = Object.keys( this.rules ).sort();
+			const clear = document.getElementById( 'fas-lab-clear' );
+			if ( clear ) { clear.disabled = ! keys.length; }
+			if ( ! keys.length ) {
+				wrap.innerHTML = '<div class="fas-table-empty">' + escHtml( s.testNone ) + '</div>';
+				return;
+			}
+			const label = { defer: s.testDefer, delay: s.testDelay, off: s.testOff };
+			const self = this;
+			wrap.innerHTML = '<table class="fas-table"><tbody>' + keys.map( function ( k ) {
+				const m      = k.match( /^(js|css)([:#])(.*)$/ ) || [ '', 'js', ':', k ];
+				const inline = '#' === m[ 2 ];
+				const where  = inline ? m[ 3 ] : m[ 3 ].replace( /^[^/]+/, '' );
+				const host   = inline ? '' : m[ 3 ].split( '/' )[ 0 ];
+				let file     = inline ? m[ 3 ] : ( where.split( '/' ).filter( Boolean ).pop() || where );
+				if ( ! inline && file.indexOf( '.' ) === -1 ) {
+					// Extension-less endpoints (e.g. js.stripe.com/v3/) read better with their host.
+					file = host + where.replace( /\/$/, '' );
+				}
+				const owner  = inline ? '' : ( extractPlugin( 'https://' + m[ 3 ] ) || host );
+				const act    = self.rules[ k ];
+				return '<tr>' +
+					td( '<span class="fas-tag ' + ( 'js' === m[ 1 ] ? 'fas-tag--js' : 'fas-tag--css' ) + '">' + escHtml( 'js' === m[ 1 ] ? s.script : s.style ) + '</span>' ) +
+					td( '<strong class="fas-lab-file">' + escHtml( file ) + '</strong><span class="fas-lab-path" title="' + escHtml( m[ 3 ] ) + '">' + escHtml( inline ? 'inline #' + m[ 3 ] : owner + ' · ' + where ) + '</span>' ) +
+					td( '<span class="fas-rule fas-rule--' + escHtml( act ) + '">' + escHtml( label[ act ] || act ) + '</span>' ) +
+					td( '<button type="button" class="fas-btn fas-btn--ghost fas-btn--sm fas-lab-remove" data-key="' + escHtml( k ) + '">' + escHtml( s.testRemove ) + '</button>' ) +
+					'</tr>';
+			} ).join( '' ) + '</tbody></table>';
+		},
+	};
+
+	function toast( msg, isError ) {
+		let el = document.getElementById( 'fas-toast' );
+		if ( ! el ) {
+			el = document.createElement( 'div' );
+			el.id = 'fas-toast';
+			el.setAttribute( 'role', 'status' );
+			document.body.appendChild( el );
+		}
+		el.textContent = msg;
+		el.className = 'fas-toast fas-toast--show' + ( isError ? ' fas-toast--error' : '' );
+		clearTimeout( toast.timer );
+		toast.timer = setTimeout( function () { el.className = 'fas-toast'; }, 3200 );
+	}
+
+	// -------------------------------------------------------------------------
 	// AJAX helper
 	// -------------------------------------------------------------------------
 
@@ -687,6 +865,8 @@
 	}
 
 	function updateStatEl( id, value ) {
+		const count = document.getElementById( id.replace( 'fas-stat-', 'fas-count-' ) );
+		if ( count ) { count.textContent = value; }
 		const el = document.getElementById( id );
 		if ( el ) { el.textContent = value; }
 	}
@@ -718,22 +898,6 @@
 			return '<span class="fas-tag fas-tag--third">3rd-party</span>';
 		}
 		return '<span class="fas-tag fas-tag--first">1st-party</span>';
-	}
-
-	
-	function trackerTag( item ) {
-		if ( ! item.tracker_name ) { return ''; }
-		const priv = item.tracker_privacy
-			? ' <a href="' + escHtml( item.tracker_privacy ) + '" target="_blank" rel="noopener" class="fas-tracker-privacy" title="Privacy policy">↗</a>'
-			: '';
-		const cat = item.tracker_category
-			? ' <span class="fas-tag fas-tag--tracker">' + escHtml( item.tracker_category ) + '</span>'
-			: '';
-		return '<div class="fas-tracker-info">' +
-			'<span class="fas-tracker-name">' + escHtml( item.tracker_name ) + '</span>' +
-			( item.tracker_company ? ' · <span class="fas-tracker-company">' + escHtml( item.tracker_company ) + '</span>' : '' ) +
-			cat + priv +
-			'</div>';
 	}
 
 	/** Extract a human-readable plugin/theme/core label from a first-party asset URL */
@@ -884,7 +1048,6 @@
 		let html = '<span class="fas-table__pages">' + pageLink( list[0] );
 
 		if ( list.length > 1 ) {
-			const restLinks = list.slice(1).map( pageLink ).join( ', ' );
 			html += ' <span class="fas-table__pages-more" title="' + escHtml( list.slice(1).join('\n') ) + '">+' + ( list.length - 1 ) + ' more</span>';
 		}
 
@@ -898,11 +1061,7 @@
 
 	function copyBtn( text ) {
 		if ( ! text ) { return ''; }
-		return '<button class="fas-copy-btn" data-copy="' + escHtml( text ) + '" title="Copy" onclick="(function(b){' +
-			'navigator.clipboard.writeText(b.dataset.copy).then(function(){' +
-			'var o=b.textContent;b.textContent=\'✓\';b.classList.add(\'fas-copy-btn--ok\');' +
-			'setTimeout(function(){b.textContent=o;b.classList.remove(\'fas-copy-btn--ok\')},1200);' +
-			'});})(this);event.stopPropagation();">⎘</button>';
+		return '<button type="button" class="fas-copy-btn" data-copy="' + escHtml( text ) + '" title="Copy">\u2398</button>';
 	}
 
 	function escHtml( str ) {
@@ -1137,7 +1296,7 @@
 			var p = [1];
 			if ( c > 4 ) p.push( '...' );
 			var s = Math.max( 2, c - 2 ), e = Math.min( t - 1, c + 2 );
-			for ( var i = s; i <= e; i++ ) p.push(i);
+			for ( var j = s; j <= e; j++ ) p.push(j);
 			if ( c < t - 3 ) p.push( '...' );
 			p.push( t );
 			return p;

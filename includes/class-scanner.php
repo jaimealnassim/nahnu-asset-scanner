@@ -1,91 +1,38 @@
 <?php
-namespace NahnuFAS;
+namespace NahnuAS;
 
 defined( 'ABSPATH' ) || exit;
 
 class Scanner {
 
+	/** Default per-page timeout in seconds (matches the Settings tab default). */
+	public const DEFAULT_TIMEOUT = 15;
+
 	// -------------------------------------------------------------------------
 	// Known third-party vendors for badge detection
 	// -------------------------------------------------------------------------
 
-	private static array $vendors = [
-		// Analytics
-		'google-analytics.com'    => [ 'Google Analytics',      'analytics' ],
-		'googletagmanager.com'    => [ 'Google Tag Manager',     'analytics' ],
-		'hotjar.com'              => [ 'Hotjar',                 'analytics' ],
-		'cloudflareinsights.com'  => [ 'Cloudflare Analytics',  'analytics' ],
-		'clarity.ms'              => [ 'Microsoft Clarity',      'analytics' ],
-		'segment.com'             => [ 'Segment',                'analytics' ],
-		'mixpanel.com'            => [ 'Mixpanel',               'analytics' ],
-		'plausible.io'            => [ 'Plausible',              'analytics' ],
-		// Marketing / Ads
-		'googlesyndication.com'   => [ 'Google Ads',             'marketing' ],
-		'doubleclick.net'         => [ 'Google DoubleClick',     'marketing' ],
-		'facebook.net'            => [ 'Facebook/Meta Pixel',    'marketing' ],
-		'connect.facebook.net'    => [ 'Facebook SDK',           'marketing' ],
-		'facebook.com'            => [ 'Facebook/Meta',          'marketing' ],
-		'ads.linkedin.com'        => [ 'LinkedIn Ads',           'marketing' ],
-		'snap.licdn.com'          => [ 'LinkedIn',               'marketing' ],
-		'static.ads-twitter.com'  => [ 'Twitter Ads',            'marketing' ],
-		'klaviyo.com'             => [ 'Klaviyo',                'marketing' ],
-		'hs-scripts.com'          => [ 'HubSpot',                'marketing' ],
-		'hubspot.com'             => [ 'HubSpot',                'marketing' ],
-		// Payment
-		'js.stripe.com'           => [ 'Stripe',                 'payment' ],
-		'stripe.com'              => [ 'Stripe',                 'payment' ],
-		'stripe.network'          => [ 'Stripe Network',         'payment' ],
-		'paypal.com'              => [ 'PayPal',                  'payment' ],
-		'paypalobjects.com'       => [ 'PayPal',                  'payment' ],
-		'braintreegateway.com'    => [ 'Braintree',              'payment' ],
-		// Consent
-		'cookiebot.com'           => [ 'Cookiebot',              'consent' ],
-		'cookiehub.com'           => [ 'CookieHub',              'consent' ],
-		'cookieyes.com'           => [ 'CookieYes',              'consent' ],
-		'iubenda.com'             => [ 'iubenda',                'consent' ],
-		'onetrust.com'            => [ 'OneTrust',               'consent' ],
-		'trustarc.com'            => [ 'TrustArc',               'consent' ],
-		'usercentrics.eu'         => [ 'Usercentrics',           'consent' ],
-		// CDN / Infrastructure
-		'cloudflare.com'          => [ 'Cloudflare',             'cdn' ],
-		'cdn.jsdelivr.net'        => [ 'jsDelivr CDN',           'cdn' ],
-		'cdnjs.cloudflare.com'    => [ 'cdnjs',                  'cdn' ],
-		'unpkg.com'               => [ 'unpkg CDN',              'cdn' ],
-		'amazonaws.com'           => [ 'Amazon AWS',             'cdn' ],
-		'cloudfront.net'          => [ 'Amazon CloudFront',      'cdn' ],
-		'b-cdn.net'               => [ 'Bunny CDN',              'cdn' ],
-		'bunny.net'               => [ 'Bunny CDN',              'cdn' ],
-		'wp.com'                  => [ 'WordPress.com',          'cdn' ],
-		'gravatar.com'            => [ 'Gravatar',               'cdn' ],
-		'googleapis.com'          => [ 'Google APIs',            'cdn' ],
-		'gstatic.com'             => [ 'Google Static CDN',      'cdn' ],
-		// Chat
-		'intercom.io'             => [ 'Intercom',               'chat' ],
-		'intercomcdn.com'         => [ 'Intercom CDN',           'chat' ],
-		'crisp.chat'              => [ 'Crisp',                  'chat' ],
-		'client.crisp.chat'       => [ 'Crisp',                  'chat' ],
-		'tawk.to'                 => [ 'Tawk.to',                'chat' ],
-		'tidio.co'                => [ 'Tidio',                  'chat' ],
-		'zendesk.com'             => [ 'Zendesk',                'chat' ],
-		'zdassets.com'            => [ 'Zendesk Assets',         'chat' ],
-		// Security / Captcha
-		'recaptcha.net'           => [ 'Google reCAPTCHA',       'security' ],
-		'hcaptcha.com'            => [ 'hCaptcha',               'security' ],
-		// Media
-		'youtube.com'             => [ 'YouTube',                'media' ],
-		'youtube-nocookie.com'    => [ 'YouTube (no-cookie)',    'media' ],
-		'vimeo.com'               => [ 'Vimeo',                  'media' ],
-		'player.vimeo.com'        => [ 'Vimeo Player',           'media' ],
-		'twitch.tv'               => [ 'Twitch',                 'media' ],
-		// Social
-		'twitter.com'             => [ 'Twitter/X',              'social' ],
-		'x.com'                   => [ 'X (Twitter)',             'social' ],
-		'linkedin.com'            => [ 'LinkedIn',               'social' ],
-		'instagram.com'           => [ 'Instagram',              'social' ],
-		'pinterest.com'           => [ 'Pinterest',              'social' ],
-		'tiktok.com'              => [ 'TikTok',                 'social' ],
-		'snapchat.com'            => [ 'Snapchat',               'social' ],
-	];
+	/**
+	 * Known third-party vendors (domain => [ name, category ]), loaded from
+	 * data/vendors.json. Only used to label domains found by a scan.
+	 *
+	 * @var array<string,array{0:string,1:string}>|null
+	 */
+	private static ?array $vendors = null;
+
+	/**
+	 * The vendor table.
+	 *
+	 * @return array<string,array{0:string,1:string}>
+	 */
+	private static function vendors(): array {
+		if ( null === self::$vendors ) {
+			$data          = wp_json_file_decode( NAHNUAS_DIR . 'data/vendors.json', [ 'associative' => true ] );
+			self::$vendors = is_array( $data ) ? $data : [];
+		}
+		return self::$vendors;
+	}
+
 
 	private static array $badge_map = [
 		'analytics' => [ 'label' => 'Analytics',    'class' => 'analytics' ],
@@ -104,18 +51,19 @@ class Scanner {
 	// -------------------------------------------------------------------------
 
 	public static function get_vendor_info( string $domain ): array {
-		$d = strtolower( trim( $domain, '.' ) );
+		$d       = strtolower( trim( $domain, '.' ) );
+		$vendors = self::vendors();
 
-		if ( isset( self::$vendors[ $d ] ) ) {
-			return [ 'name' => self::$vendors[ $d ][0], 'category' => self::$vendors[ $d ][1] ];
+		if ( isset( $vendors[ $d ] ) ) {
+			return [ 'name' => $vendors[ $d ][0], 'category' => $vendors[ $d ][1] ];
 		}
 
 		$parts = explode( '.', $d );
 		while ( count( $parts ) > 2 ) {
 			array_shift( $parts );
 			$parent = implode( '.', $parts );
-			if ( isset( self::$vendors[ $parent ] ) ) {
-				return [ 'name' => self::$vendors[ $parent ][0], 'category' => self::$vendors[ $parent ][1] ];
+			if ( isset( $vendors[ $parent ] ) ) {
+				return [ 'name' => $vendors[ $parent ][0], 'category' => $vendors[ $parent ][1] ];
 			}
 		}
 		return [];
@@ -153,7 +101,7 @@ class Scanner {
 			if ( $custom ) {
 				foreach ( explode( "\n", $custom ) as $line ) {
 					$u = trim( $line );
-					if ( filter_var( $u, FILTER_VALIDATE_URL ) ) {
+					if ( wp_http_validate_url( $u ) ) {
 						$urls[ $u ] = 'custom';
 					}
 				}
@@ -173,11 +121,13 @@ class Scanner {
 		// WP Pages
 		if ( get_option( 'nahnuas_include_pages', '1' ) === '1' ) {
 			$pages = get_posts( [
-				'post_type'   => 'page',
-				'post_status' => 'publish',
-				'numberposts' => 5,
-				'orderby'     => 'modified',
-				'order'       => 'DESC',
+				'post_type'              => 'page',
+				'post_status'            => 'publish',
+				'numberposts'            => 5,
+				'orderby'                => 'modified',
+				'order'                  => 'DESC',
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => false,
 			] );
 			foreach ( $pages as $p ) {
 				$url = get_permalink( $p->ID );
@@ -188,11 +138,13 @@ class Scanner {
 		// WP Posts
 		if ( get_option( 'nahnuas_include_posts', '1' ) === '1' ) {
 			$posts = get_posts( [
-				'post_type'   => 'post',
-				'post_status' => 'publish',
-				'numberposts' => 5,
-				'orderby'     => 'modified',
-				'order'       => 'DESC',
+				'post_type'              => 'post',
+				'post_status'            => 'publish',
+				'numberposts'            => 5,
+				'orderby'                => 'modified',
+				'order'                  => 'DESC',
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => false,
 			] );
 			foreach ( $posts as $p ) {
 				$url = get_permalink( $p->ID );
@@ -209,7 +161,7 @@ class Scanner {
 					if ( $url ) $urls[ $url ] = $type;
 				}
 			}
-			$products = get_posts( [ 'post_type' => 'product', 'post_status' => 'publish', 'numberposts' => 1 ] );
+			$products = get_posts( [ 'post_type' => 'product', 'post_status' => 'publish', 'numberposts' => 1, 'update_post_term_cache' => false, 'update_post_meta_cache' => false ] );
 			if ( $products ) {
 				$url = get_permalink( $products[0]->ID );
 				if ( $url ) $urls[ $url ] = 'wc-product';
@@ -221,7 +173,9 @@ class Scanner {
 		if ( $custom ) {
 			foreach ( explode( "\n", $custom ) as $line ) {
 				$u = trim( $line );
-				if ( filter_var( $u, FILTER_VALIDATE_URL ) ) $urls[ $u ] = 'custom';
+				if ( wp_http_validate_url( $u ) ) {
+					$urls[ $u ] = 'custom';
+				}
 			}
 		}
 
@@ -239,21 +193,26 @@ class Scanner {
 	public static function scan_page( int $scan_id, string $url, string $page_type = 'page' ): array {
 		$page_id = DB::create_page( $scan_id, $url, $page_type );
 		$now     = current_time( 'mysql' );
-		$timeout = max( 5, (int) get_option( 'nahnuas_scan_timeout', 10 ) );
+		$timeout = min( 120, max( 5, (int) get_option( 'nahnuas_scan_timeout', self::DEFAULT_TIMEOUT ) ) );
 
-		// Use cURL directly — wp_remote_get merges duplicate Set-Cookie headers
-		// losing all cookies except the last one.
-		[ $code, $html, $raw_cookies ] = self::curl_fetch( $url, $timeout );
+		[ $code, $html, $raw_cookies, $error ] = self::fetch_page( $url, $timeout );
 
-		if ( $code === 0 ) {
+		if ( 0 === $code ) {
 			DB::update_page( $page_id, [ 'status_code' => 0, 'scanned_at' => $now ] );
-			return [ 'success' => false, 'error' => 'cURL fetch failed' ];
+			return [
+				'success' => false,
+				'error'   => $error ?: __( 'The page could not be fetched.', 'nahnu-asset-scanner' ),
+			];
 		}
 
 		DB::update_page( $page_id, [ 'status_code' => $code, 'scanned_at' => $now ] );
 
-		if ( $code >= 400 || empty( $html ) ) {
-			return [ 'success' => false, 'error' => "HTTP {$code}" ];
+		if ( $code >= 400 || '' === $html ) {
+			return [
+				'success' => false,
+				/* translators: %d: HTTP status code, e.g. 404. */
+				'error'   => sprintf( __( 'The page returned HTTP %d.', 'nahnu-asset-scanner' ), $code ),
+			];
 		}
 
 		// --- JS / CSS / Domain extraction from DOM ---
@@ -278,76 +237,50 @@ class Scanner {
 	}
 
 	/**
-	 * Fetch a URL using cURL, capturing every Set-Cookie header separately.
+	 * Fetch a page with the WordPress HTTP API.
 	 *
-	 * @return array{0:int, 1:string, 2:string[]}  [http_code, body, set_cookie_values[]]
+	 * wp_safe_remote_get() re-validates every redirect hop against internal/private
+	 * addresses. Every Set-Cookie line is read with wp_remote_retrieve_header(),
+	 * which returns an array when the response carries more than one, so no
+	 * transport-level hooks are needed.
+	 *
+	 * @return array{0:int, 1:string, 2:string[], 3:string} [http_code, body, set_cookie_values, error]
 	 */
-	/**
-	 * Fetch a URL using the WordPress HTTP API, capturing every Set-Cookie header.
-	 *
-	 * We hook http_api_curl to add CURLOPT_HEADERFUNCTION so we can capture
-	 * duplicate Set-Cookie headers that the WP HTTP API would otherwise collapse.
-	 *
-	 * @return array{0:int, 1:string, 2:string[]}  [http_code, body, set_cookie_values[]]
-	 */
-	private static function curl_fetch( string $url, int $timeout ): array {
+	private static function fetch_page( string $url, int $timeout ): array {
 		if ( ! wp_http_validate_url( $url ) ) {
-			return [ 0, '', [] ];
+			return [ 0, '', [], __( 'The URL was rejected as unsafe.', 'nahnu-asset-scanner' ) ];
 		}
 
-		$cookies = [];
+		// Loopback requests to this site may use a self-signed certificate on local
+		// and staging installs; core uses the same filter for its own loopbacks.
+		$is_own_site = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) ) === self::site_host();
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberately reuses the core filter.
+		$sslverify   = $is_own_site ? (bool) apply_filters( 'https_local_ssl_verify', false ) : true;
 
-		// Hook into the cURL handle before the request fires so we can register
-		// CURLOPT_HEADERFUNCTION. This captures each Set-Cookie line individually
-		// before the WP HTTP API collapses duplicate headers into one value.
-		$header_callback = function ( $handle ) use ( &$cookies ): void {
-			curl_setopt( // phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt
-				$handle,
-				CURLOPT_HEADERFUNCTION,
-				function ( $ch, string $header ) use ( &$cookies ): int {
-					if ( stripos( $header, 'set-cookie:' ) === 0 ) {
-						$val = trim( substr( $header, strlen( 'set-cookie:' ) ) );
-						if ( $val !== '' ) {
-							$cookies[] = $val;
-						}
-					}
-					return strlen( $header );
-				}
-			);
-		};
-
-		add_action( 'http_api_curl', $header_callback );
-
-		$response = wp_remote_get( $url, [
-			'timeout'    => $timeout,
-			'sslverify'  => false,
-			'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-			'headers'    => [
+		$response = wp_safe_remote_get( $url, [
+			'timeout'     => $timeout,
+			'redirection' => 5,
+			'sslverify'   => $sslverify,
+			'user-agent'  => 'Mozilla/5.0 (compatible; NahnuAssetScanner/' . NAHNUAS_VERSION . '; +' . home_url( '/' ) . ')',
+			'headers'     => [
 				'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 				'Accept-Language' => 'en-US,en;q=0.5',
 				'Cache-Control'   => 'no-cache',
 			],
 		] );
 
-		remove_action( 'http_api_curl', $header_callback );
-
 		if ( is_wp_error( $response ) ) {
-			return [ 0, '', [] ];
+			return [ 0, '', [], $response->get_error_message() ];
 		}
 
-		// Fallback: if http_api_curl did not fire (non-cURL transport), parse headers.
-		if ( empty( $cookies ) ) {
-			foreach ( (array) wp_remote_retrieve_headers( $response ) as $k => $v ) {
-				if ( strtolower( $k ) === 'set-cookie' ) {
-					$cookies = array_merge( $cookies, (array) $v );
-				}
-			}
-		}
+		$set_cookie = wp_remote_retrieve_header( $response, 'set-cookie' );
+		$cookies    = array_values( array_filter( array_map( 'strval', (array) $set_cookie ), 'strlen' ) );
 
 		return [
 			(int) wp_remote_retrieve_response_code( $response ),
 			(string) wp_remote_retrieve_body( $response ),
 			$cookies,
+			'',
 		];
 	}
 
@@ -370,29 +303,18 @@ class Scanner {
 			$found[] = $raw;
 		}
 
-		// 2. wp.hooks / WC fragment cookie names stored in inline JSON
-		// e.g. {"woocommerce-cart-hash":{"expires":...},"woocommerce_items_in_cart":...}
+		// 2. Explicit cookie-name keys in inline config objects, as used by consent
+		//    and analytics scripts: {"cookieName":"cmplz_banner-status"},
+		//    {"cookie_name":"_my_consent"}, {"cookieKey":"..."}.
+		//    (A broad match on any quoted "wp-…" string was removed in 1.0.2: it
+		//    reported script/style element IDs such as "wp-a11y-js" as cookies.)
 		preg_match_all(
-			'/"(woocommerce[_-][a-z0-9_-]+|wp[_-][a-z0-9_-]+|wordpress[_-][a-z0-9_-]+)"/',
+			'/["\']cookie[_-]?(?:name|key)["\']\s*:\s*["\']([a-zA-Z0-9_.-]{3,79})["\']/i',
 			$html,
 			$m2
 		);
 		foreach ( $m2[1] as $name ) {
-			if ( strlen( $name ) > 2 && strlen( $name ) < 80 ) {
-				$found[] = $name . '=';   // synthetic cookie string for parse_set_cookie
-			}
-		}
-
-		// 3. CookieYes / Complianz / Borlabs cookie name declarations
-		preg_match_all(
-			'/["\']cookie(?:Name|_name|s)?["\']\s*:\s*["\']([a-zA-Z0-9_-]+)["\']/i',
-			$html,
-			$m3
-		);
-		foreach ( $m3[1] as $name ) {
-			if ( strlen( $name ) > 2 && strlen( $name ) < 80 ) {
-				$found[] = $name . '=';
-			}
+			$found[] = $name . '=';
 		}
 
 		$seen = [];
@@ -425,11 +347,15 @@ class Scanner {
 	// -------------------------------------------------------------------------
 
 	private static function parse_html( string $html ): ?\DOMDocument {
-		$dom = new \DOMDocument( '1.0', 'UTF-8' );
-		libxml_use_internal_errors( true );
-		@$dom->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NOWARNING | LIBXML_NOERROR );
+		if ( '' === trim( $html ) ) {
+			return null;
+		}
+		$dom      = new \DOMDocument( '1.0', 'UTF-8' );
+		$previous = libxml_use_internal_errors( true );
+		$loaded   = $dom->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NOWARNING | LIBXML_NOERROR | LIBXML_NONET );
 		libxml_clear_errors();
-		return $dom;
+		libxml_use_internal_errors( $previous );
+		return $loaded ? $dom : null;
 	}
 
 	private static function extract_js( \DOMDocument $dom, int $scan_id, int $page_id, string $base_url, string $now ): void {
@@ -548,7 +474,9 @@ class Scanner {
 			foreach ( $dom->getElementsByTagName( $tag ) as $el ) {
 				foreach ( $attrs as $attr => $source_type ) {
 					$url = trim( $el->getAttribute( $attr ) );
-					if ( empty( $url ) || strpos( $url, 'data:' ) === 0 ) continue;
+					if ( '' === $url || preg_match( '#^(data|blob|javascript|about|mailto|tel):#i', $url ) ) {
+						continue;
+					}
 					$abs    = self::make_absolute( $url, $base_url );
 					$domain = self::extract_domain( $abs );
 					if ( empty( $domain ) ) continue;
@@ -631,7 +559,7 @@ class Scanner {
 				case 'path':     $result['path']     = $v; break;
 				case 'domain':   $result['domain']   = ltrim( $v, '.' ); break;
 				case 'expires':  $result['expires']  = $v; break;
-				case 'max-age':  $result['max-age']  = $v; $result['expires'] = $v ? date( 'Y-m-d H:i:s', time() + (int) $v ) : ''; break;
+				case 'max-age':  $result['max-age']  = $v; $result['expires'] = $v ? gmdate( 'Y-m-d H:i:s', time() + (int) $v ) . ' UTC' : ''; break;
 				case 'samesite': $result['samesite'] = $v; break;
 			}
 		}
@@ -665,45 +593,72 @@ class Scanner {
 	// -------------------------------------------------------------------------
 
 	public static function extract_domain( string $url ): string {
-		if ( empty( $url ) ) return '';
-		if ( strpos( $url, '//' ) === 0 ) $url = 'https:' . $url;
-		return strtolower( (string) parse_url( $url, PHP_URL_HOST ) );
+		if ( '' === $url ) {
+			return '';
+		}
+		if ( str_starts_with( $url, '//' ) ) {
+			$url = 'https:' . $url;
+		}
+		return strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
 	}
 
+	/**
+	 * Resolve a src/href found in the page against the page URL.
+	 * Uses core's resolver, which handles ./, ../, query-only and protocol-relative URLs.
+	 */
 	private static function make_absolute( string $url, string $base_url ): string {
-		if ( strpos( $url, 'http' ) === 0 ) return $url;
-		if ( strpos( $url, '//' ) === 0 )   return 'https:' . $url;
-		$p      = parse_url( $base_url );
-		$scheme = $p['scheme'] ?? 'https';
-		$host   = $p['host']   ?? '';
-		if ( strpos( $url, '/' ) === 0 ) return "{$scheme}://{$host}{$url}";
-		$path = isset( $p['path'] ) ? rtrim( dirname( $p['path'] ), '/' ) . '/' : '/';
-		return "{$scheme}://{$host}{$path}{$url}";
+		if ( preg_match( '#^https?://#i', $url ) ) {
+			return $url;
+		}
+		if ( ! class_exists( '\WP_Http' ) ) {
+			require_once ABSPATH . WPINC . '/class-wp-http.php';
+		}
+		return \WP_Http::make_absolute_url( $url, $base_url );
+	}
+
+	/**
+	 * Registrable domain ("example.com", "example.co.uk") for a host.
+	 * Handles the common two-part country suffixes so that two unrelated sites
+	 * on .co.uk are not treated as the same party.
+	 */
+	public static function base_domain( string $host ): string {
+		$labels = explode( '.', strtolower( trim( $host, '.' ) ) );
+		$count  = count( $labels );
+		if ( $count <= 2 ) {
+			return implode( '.', $labels );
+		}
+		$second = $labels[ $count - 2 ];
+		$tld    = $labels[ $count - 1 ];
+		$take   = ( 2 === strlen( $tld ) && in_array( $second, [ 'co', 'com', 'net', 'org', 'gov', 'edu', 'ac', 'or', 'ne', 'go' ], true ) ) ? 3 : 2;
+		return implode( '.', array_slice( $labels, -$take ) );
 	}
 
 	private static function is_third_party( string $domain, string $site_host ): bool {
-		// Strip port numbers (e.g. dev.example.com:8080 → dev.example.com)
+		// Strip port numbers (e.g. dev.example.com:8080 → dev.example.com).
 		$domain    = strtolower( explode( ':', $domain )[0] );
 		$site_host = strtolower( explode( ':', $site_host )[0] );
 
-		if ( empty( $domain ) || $domain === $site_host ) return false;
+		if ( '' === $domain || $domain === $site_host ) {
+			return false;
+		}
 
-		// Compare registrable base domains so cdn.example.com === www.example.com
-		$site_base   = implode( '.', array_slice( explode( '.', $site_host ), -2 ) );
-		$domain_base = implode( '.', array_slice( explode( '.', $domain ),   -2 ) );
-		return $site_base !== $domain_base;
+		// Compare registrable domains so cdn.example.com is first-party to www.example.com.
+		return self::base_domain( $site_host ) !== self::base_domain( $domain );
 	}
 
 	private static function site_host(): string {
-		// Always return the bare host, no port, lowercase.
-		$host = strtolower( (string) parse_url( home_url( '/' ), PHP_URL_HOST ) );
+		// Always the bare host: no port, lower-case.
+		$host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
 		return explode( ':', $host )[0];
 	}
 
 	private static function extract_version( string $url ): string {
-		$q = (string) parse_url( $url, PHP_URL_QUERY );
-		if ( ! $q ) return '';
+		$q = (string) wp_parse_url( $url, PHP_URL_QUERY );
+		if ( '' === $q ) {
+			return '';
+		}
 		parse_str( $q, $params );
-		return (string) ( $params['ver'] ?? $params['v'] ?? $params['version'] ?? '' );
+		$version = $params['ver'] ?? $params['v'] ?? $params['version'] ?? '';
+		return is_scalar( $version ) ? (string) $version : '';
 	}
 }

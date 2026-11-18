@@ -2,10 +2,10 @@
 /**
  * Admin class — menu, enqueue, render, AJAX handlers.
  *
- * @package NahnuFAS
+ * @package NahnuAS
  */
 
-namespace NahnuFAS;
+namespace NahnuAS;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -18,6 +18,9 @@ class Admin {
 
 	/** @var string Required capability */
 	const CAP = 'manage_options';
+
+	/** @var string[] Result tabs that can be queried or exported. */
+	const RESULT_TABS = [ 'js', 'css', 'cookies', 'domains' ];
 
 	// -------------------------------------------------------------------------
 	// Bootstrap
@@ -83,8 +86,10 @@ class Admin {
 			'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
 			'nonce'      => wp_create_nonce( self::NONCE ),
 			'latestScan' => $latest ?: null,
-			'siteHost'   => strtolower( (string) parse_url( home_url( '/' ), PHP_URL_HOST ) ),
+			'siteHost'   => strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) ),
 			'pluginMap'  => Plugin_Map::get_map(),
+			'testRules'  => (object) Test_Mode::get_rules(),
+			'testParam'  => Test_Mode::PARAM,
 			'strings'    => [
 				'scanning'          => __( 'Scanning…', 'nahnu-asset-scanner' ),
 				'scanComplete'      => __( 'Scan complete', 'nahnu-asset-scanner' ),
@@ -96,6 +101,19 @@ class Admin {
 				'fetching'          => __( 'Fetching…', 'nahnu-asset-scanner' ),
 				'refresh'           => __( 'Refresh', 'nahnu-asset-scanner' ),
 				'networkError'      => __( 'Network error. Please try again.', 'nahnu-asset-scanner' ),
+				'testColumn'        => __( 'Test', 'nahnu-asset-scanner' ),
+				'testOn'            => __( 'On', 'nahnu-asset-scanner' ),
+				'testOff'           => __( 'Off', 'nahnu-asset-scanner' ),
+				'testDefer'         => __( 'Defer', 'nahnu-asset-scanner' ),
+				'testDelay'         => __( 'Delay', 'nahnu-asset-scanner' ),
+				'testSaved'         => __( 'Test rule saved. Open a page in test mode to see the effect.', 'nahnu-asset-scanner' ),
+				'testRemoved'       => __( 'Test rule removed.', 'nahnu-asset-scanner' ),
+				'testInline'        => __( 'Inline code is tested from the front-end panel.', 'nahnu-asset-scanner' ),
+				'testNone'          => __( 'No test rules yet. Pick Off, Defer or Delay in the Scripts or Styles tab, or open a page in test mode and use the panel.', 'nahnu-asset-scanner' ),
+				'testRemove'        => __( 'Remove', 'nahnu-asset-scanner' ),
+				'confirmClearRules' => __( 'Remove all of your test rules?', 'nahnu-asset-scanner' ),
+				'script'            => __( 'Script', 'nahnu-asset-scanner' ),
+				'style'             => __( 'Style', 'nahnu-asset-scanner' ),
 			],
 		] );
 	}
@@ -124,10 +142,14 @@ class Admin {
 					</svg>
 					<div>
 						<span class="fas-header__title"><?php esc_html_e( 'Nahnu Asset Scanner', 'nahnu-asset-scanner' ); ?></span>
-						<span class="fas-header__by">by <a href="https://www.nahnuplugins.com" target="_blank" rel="noopener" style="color:rgba(255,255,255,.85);text-decoration:none;">Nahnu Plugins</a></span>
+						<span class="fas-header__by"><?php esc_html_e( 'by', 'nahnu-asset-scanner' ); ?> <a href="https://www.nahnuplugins.com" target="_blank" rel="noopener" style="color:rgba(255,255,255,.85);text-decoration:none;">Nahnu Plugins</a></span>
 					</div>
 				</div>
 				<div class="fas-header__actions">
+					<a class="fas-btn fas-btn--onblue" href="<?php echo esc_url( add_query_arg( Test_Mode::PARAM, '1', home_url( '/' ) ) ); ?>" target="_blank" rel="noopener">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 3h6M10 3v6.5L4.6 18.3A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.7L14 9.5V3"/><path d="M7.5 15h9"/></svg>
+						<?php esc_html_e( 'Test on front end', 'nahnu-asset-scanner' ); ?>
+					</a>
 					<button id="fas-run-scan" class="fas-btn fas-btn--primary">
 						<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
 						<?php esc_html_e( 'Run Scan', 'nahnu-asset-scanner' ); ?>
@@ -190,30 +212,27 @@ class Admin {
 				</div>
 			</div>
 
-			<?php
-			// ── Stale database banner ──────────────────────────────────────────────
-			$_banner_stale = [];
-			// FAZ is optional — only warn about core databases
-			foreach ( [
-											] as $_db_name => $_db_s ) {
-				if ( ! $_db_s['loaded'] ) {
-					$_banner_stale[] = $_db_name . ' (not loaded)';
-				} elseif ( $_db_s['fetched'] && ( time() - $_db_s['fetched'] > WEEK_IN_SECONDS ) ) {
-					$_days = round( ( time() - $_db_s['fetched'] ) / DAY_IN_SECONDS );
-					$_banner_stale[] = $_db_name . ' (' . $_days . 'd old)';
-				}
-			}
-			if ( ! empty( $_banner_stale ) ) : ?>
-			<?php endif; ?>
-
 			<!-- Tab nav -->
 			<div class="fas-tabs">
+				<?php
+				$counts = [
+					'js'      => $latest ? (int) $latest['total_js'] : 0,
+					'css'     => $latest ? (int) $latest['total_css'] : 0,
+					'cookies' => $latest ? (int) $latest['total_cookies'] : 0,
+					'domains' => $latest ? (int) $latest['total_domains'] : 0,
+				];
+				$rules_count = count( Test_Mode::get_rules() );
+				?>
 				<nav class="fas-tab-nav" role="tablist">
-					<button class="fas-tab-btn fas-tab-btn--active" data-tab="pages" role="tab">Pages</button>
-					<button class="fas-tab-btn" data-tab="js" role="tab">JS</button>
-					<button class="fas-tab-btn" data-tab="css" role="tab">CSS</button>
-					<button class="fas-tab-btn" data-tab="cookies" role="tab"><?php esc_html_e( 'Cookies', 'nahnu-asset-scanner' ); ?></button>
-					<button class="fas-tab-btn" data-tab="domains" role="tab"><?php esc_html_e( 'Domains', 'nahnu-asset-scanner' ); ?></button>
+					<button class="fas-tab-btn fas-tab-btn--active" data-tab="pages" role="tab"><?php esc_html_e( 'Pages', 'nahnu-asset-scanner' ); ?></button>
+					<span class="fas-tab-sep" aria-hidden="true"></span>
+					<button class="fas-tab-btn" data-tab="js" role="tab"><?php esc_html_e( 'Scripts', 'nahnu-asset-scanner' ); ?> <span class="fas-tab-count" id="fas-count-js"><?php echo absint( $counts['js'] ); ?></span></button>
+					<button class="fas-tab-btn" data-tab="css" role="tab"><?php esc_html_e( 'Styles', 'nahnu-asset-scanner' ); ?> <span class="fas-tab-count" id="fas-count-css"><?php echo absint( $counts['css'] ); ?></span></button>
+					<button class="fas-tab-btn" data-tab="cookies" role="tab"><?php esc_html_e( 'Cookies', 'nahnu-asset-scanner' ); ?> <span class="fas-tab-count" id="fas-count-cookies"><?php echo absint( $counts['cookies'] ); ?></span></button>
+					<button class="fas-tab-btn" data-tab="domains" role="tab"><?php esc_html_e( 'Domains', 'nahnu-asset-scanner' ); ?> <span class="fas-tab-count" id="fas-count-domains"><?php echo absint( $counts['domains'] ); ?></span></button>
+					<span class="fas-tab-sep" aria-hidden="true"></span>
+					<button class="fas-tab-btn fas-tab-btn--test" data-tab="test" role="tab"><?php esc_html_e( 'Test Lab', 'nahnu-asset-scanner' ); ?> <span class="fas-tab-count fas-tab-count--test" id="fas-count-test"<?php echo $rules_count ? '' : ' hidden'; ?>><?php echo absint( $rules_count ); ?></span></button>
+					<span class="fas-tab-spacer" aria-hidden="true"></span>
 					<button class="fas-tab-btn fas-tab-btn--settings" data-tab="settings" role="tab"><?php esc_html_e( 'Settings', 'nahnu-asset-scanner' ); ?></button>
 					<button class="fas-tab-btn fas-tab-btn--settings" data-tab="about" role="tab"><?php esc_html_e( 'About', 'nahnu-asset-scanner' ); ?></button>
 				</nav>
@@ -224,20 +243,34 @@ class Admin {
 				<div id="fas-panel-pages" class="fas-panel fas-panel--active" data-panel="pages">
 
 					<?php
-					global $wpdb;
 					$selected_ids = array_map( 'intval', (array) get_option( 'nahnuas_selected_post_ids', [] ) );
-					$all_types    = get_post_types( [ 'public' => true ], 'objects' );
-					unset( $all_types['attachment'] );
-					$type_names   = array_keys( $all_types );
-					if ( empty( $type_names ) ) { $type_names = [ 'post', 'page' ]; }
-					$in           = "'" . implode( "','", array_map( 'esc_sql', $type_names ) ) . "'";
-					$total        = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status='publish' AND post_type IN ($in)" ); // $in is esc_sql'd from get_post_types()
-					$rows         = $wpdb->get_results( "SELECT ID, post_title, post_type FROM {$wpdb->posts} WHERE post_status='publish' AND post_type IN ($in) ORDER BY post_title ASC LIMIT 10" );
+					$browse       = DB::browse_posts( '', '', 1, 10 );
+					$all_types    = $browse['all_types'];
+					$total        = $browse['total'];
+					$rows         = $browse['rows'];
 					?>
 
+					<ol class="fas-steps">
+						<li class="fas-step fas-step--current">
+							<span class="fas-step__num">1</span>
+							<div><strong><?php esc_html_e( 'Choose pages', 'nahnu-asset-scanner' ); ?></strong>
+							<span><?php esc_html_e( 'Tick up to 10 below, or leave all unticked to scan your latest content.', 'nahnu-asset-scanner' ); ?></span></div>
+						</li>
+						<li class="fas-step<?php echo $latest ? ' fas-step--done' : ''; ?>">
+							<span class="fas-step__num">2</span>
+							<div><strong><?php esc_html_e( 'Run the scan', 'nahnu-asset-scanner' ); ?></strong>
+							<span><?php esc_html_e( 'See every script, style, cookie and domain, with the plugin behind it.', 'nahnu-asset-scanner' ); ?></span></div>
+						</li>
+						<li class="fas-step<?php echo $rules_count ? ' fas-step--done' : ''; ?>">
+							<span class="fas-step__num">3</span>
+							<div><strong><?php esc_html_e( 'Test changes', 'nahnu-asset-scanner' ); ?></strong>
+							<span><?php esc_html_e( 'Turn files off, defer or delay them on the live page. Only you see it.', 'nahnu-asset-scanner' ); ?></span></div>
+						</li>
+					</ol>
+
 					<div class="fpp-intro">
-						<p><?php esc_html_e( 'Check up to 10 pages or posts. These will be scanned when you click Run Scan. Leave all unchecked to auto-discover published content.', 'nahnu-asset-scanner' ); ?></p>
-						<span class="fpp-counter"><span id="fpp-count"><?php echo count( $selected_ids ); ?></span> / 10 <?php esc_html_e( 'selected', 'nahnu-asset-scanner' ); ?></span>
+						<p><?php esc_html_e( 'Pages to scan', 'nahnu-asset-scanner' ); ?></p>
+						<span class="fpp-counter"><span id="fpp-count"><?php echo absint( count( $selected_ids ) ); ?></span> / 10 <?php esc_html_e( 'selected', 'nahnu-asset-scanner' ); ?></span>
 					</div>
 
 					<div class="fpp-toolbar">
@@ -262,7 +295,7 @@ class Admin {
 							?>
 								<tr class="<?php echo $checked ? 'fpp-checked' : ''; ?>" data-id="<?php echo absint( $row->ID ); ?>">
 									<td class="fpp-tc"><input type="checkbox" <?php checked( $checked ); ?>></td>
-									<td class="fpp-tt"><?php echo esc_html( $row->post_title ?: '(no title)' ); ?></td>
+									<td class="fpp-tt"><?php echo esc_html( $row->post_title ?: __( '(no title)', 'nahnu-asset-scanner' ) ); ?></td>
 									<td><span class="fpp-badge fpp-bt-<?php echo esc_attr( $row->post_type ); ?>"><?php echo esc_html( $label ); ?></span></td>
 								</tr>
 							<?php endforeach; ?>
@@ -277,7 +310,10 @@ class Admin {
 					<?php if ( $total > 10 ) :
 						$tot_pages = (int) ceil( $total / 10 );
 					?>
-						<span class="fpp-pinfo"><?php printf( esc_html__( 'Showing 1–10 of %d', 'nahnu-asset-scanner' ), $total ); ?></span>
+						<span class="fpp-pinfo"><?php
+							/* translators: %s: total number of published items. */
+							printf( esc_html__( 'Showing 1–10 of %s', 'nahnu-asset-scanner' ), esc_html( number_format_i18n( $total ) ) );
+						?></span>
 						<div class="fpp-pages">
 							<button class="fpp-pg fpp-pg-on" data-p="1">1</button>
 							<?php for ( $i = 2; $i <= min( $tot_pages, 5 ); $i++ ) : ?>
@@ -296,7 +332,7 @@ class Admin {
 						<button id="fpp-clear-sel" class="fas-btn fas-btn--ghost fas-btn--sm"><?php esc_html_e( 'Clear all', 'nahnu-asset-scanner' ); ?></button>
 						<div class="fpp-footer-right">
 							<span class="fpp-hint"><?php esc_html_e( 'Selections persist across pages.', 'nahnu-asset-scanner' ); ?></span>
-							<button id="fpp-save" class="fas-btn fas-btn--primary"><?php esc_html_e( 'Save Selection', 'nahnu-asset-scanner' ); ?></button>
+							<button id="fpp-save" class="fas-btn fas-btn--solid"><?php esc_html_e( 'Save Selection', 'nahnu-asset-scanner' ); ?></button>
 							<span id="fpp-saved-notice" class="fpp-saved-notice" style="display:none;"><?php esc_html_e( 'Saved!', 'nahnu-asset-scanner' ); ?></span>
 						</div>
 					</div>
@@ -375,6 +411,84 @@ class Admin {
 					<div class="fas-pagination" id="fas-pagination-domains"></div>
 				</div>
 
+				<!-- Test Lab panel -->
+				<div id="fas-panel-test" class="fas-panel" data-panel="test">
+					<?php
+					$test_urls = [ home_url( '/' ) ];
+					if ( $latest ) {
+						$test_urls = array_values( array_unique( array_merge( $test_urls, DB::get_page_urls( (int) $latest['id'] ) ) ) );
+					}
+					?>
+					<div class="fas-lab-hero">
+						<div>
+							<h2><?php esc_html_e( 'Test before you optimize', 'nahnu-asset-scanner' ); ?></h2>
+							<p><?php esc_html_e( 'Cache plugins can break a site when the wrong file is turned off, deferred or delayed. Try it here first: the page opens with your test rules and a panel to change them. Only you see it. Visitors and your cache are never affected.', 'nahnu-asset-scanner' ); ?></p>
+						</div>
+						<div class="fas-lab-open">
+							<label for="fas-lab-url"><?php esc_html_e( 'Page to test', 'nahnu-asset-scanner' ); ?></label>
+							<div class="fas-lab-open__row">
+								<select id="fas-lab-url">
+									<?php foreach ( $test_urls as $test_url ) : ?>
+										<option value="<?php echo esc_url( $test_url ); ?>"><?php echo esc_html( untrailingslashit( preg_replace( '#^https?://[^/]+#', '', $test_url ) ) ?: '/' ); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<a id="fas-lab-go" class="fas-btn fas-btn--solid" href="<?php echo esc_url( add_query_arg( Test_Mode::PARAM, '1', home_url( '/' ) ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open in test mode', 'nahnu-asset-scanner' ); ?> &#8599;</a>
+							</div>
+							<span class="fas-lab-open__tip">
+								<?php
+								printf(
+									/* translators: %s: the query string that turns test mode on, e.g. ?nahnuas_test=1 */
+									esc_html__( 'Or add %s to any page address while logged in, or use "Test assets" in the admin bar.', 'nahnu-asset-scanner' ),
+									'<code>?' . esc_html( Test_Mode::PARAM ) . '=1</code>'
+								);
+								?>
+							</span>
+						</div>
+					</div>
+
+					<div class="fas-lab-modes">
+						<div class="fas-lab-mode fas-lab-mode--off">
+							<strong><?php esc_html_e( 'Off', 'nahnu-asset-scanner' ); ?></strong>
+							<span><?php esc_html_e( 'The file is not loaded. Shows whether anything on the page needs it.', 'nahnu-asset-scanner' ); ?></span>
+						</div>
+						<div class="fas-lab-mode fas-lab-mode--defer">
+							<strong><?php esc_html_e( 'Defer', 'nahnu-asset-scanner' ); ?></strong>
+							<span><?php esc_html_e( 'Scripts run after the page HTML is read. Stylesheets load without blocking the first paint.', 'nahnu-asset-scanner' ); ?></span>
+						</div>
+						<div class="fas-lab-mode fas-lab-mode--delay">
+							<strong><?php esc_html_e( 'Delay', 'nahnu-asset-scanner' ); ?></strong>
+							<span><?php esc_html_e( 'Scripts wait for the first scroll, tap, click or key press. Best for chat widgets, trackers and ads.', 'nahnu-asset-scanner' ); ?></span>
+						</div>
+					</div>
+
+					<div class="fas-card">
+						<div class="fas-card__header">
+							<?php esc_html_e( 'Your test rules', 'nahnu-asset-scanner' ); ?>
+							<button type="button" id="fas-lab-clear" class="fas-btn fas-btn--ghost fas-btn--sm fas-card__header-action"><?php esc_html_e( 'Remove all', 'nahnu-asset-scanner' ); ?></button>
+						</div>
+						<div id="fas-lab-rules" class="fas-lab-rules"></div>
+					</div>
+
+					<div class="fas-card fas-lab-ai">
+						<div class="fas-card__header">
+							<?php esc_html_e( 'AI agents & MCP', 'nahnu-asset-scanner' ); ?>
+							<span class="fas-card__header-hint"><?php esc_html_e( 'Abilities API', 'nahnu-asset-scanner' ); ?></span>
+						</div>
+						<div class="fas-card__body">
+							<p><?php esc_html_e( 'This plugin registers WordPress abilities, so an AI assistant connected through MCP (for example with the WordPress MCP Adapter) can scan your site and run these tests for you. Each ability requires an administrator account.', 'nahnu-asset-scanner' ); ?></p>
+							<ul class="fas-lab-ai__list">
+								<li><code>run-scan</code>, <code>get-scan-summary</code>, <code>get-results</code>: <?php esc_html_e( 'scan pages and read scripts, styles, cookies and domains.', 'nahnu-asset-scanner' ); ?></li>
+								<li><code>get-page-assets</code>: <?php esc_html_e( 'every script and stylesheet on a page, with its rule key.', 'nahnu-asset-scanner' ); ?></li>
+								<li><code>get-test-rules</code>, <code>set-test-rules</code>: <?php esc_html_e( 'the rules you see in this tab.', 'nahnu-asset-scanner' ); ?></li>
+								<li><code>run-test</code>, <code>get-test-report</code>: <?php esc_html_e( 'render a page with rules, list render-blocking files and scripts that will break, and collect real JavaScript errors from a browser through a one-time link that expires after 30 minutes.', 'nahnu-asset-scanner' ); ?></li>
+							</ul>
+							<p class="fas-lab-ai__try"><?php esc_html_e( 'Try asking your assistant: "Scan my home page, delay every third-party script in a test, and tell me what breaks."', 'nahnu-asset-scanner' ); ?></p>
+						</div>
+					</div>
+
+					<p class="fas-lab-note"><?php esc_html_e( 'When a page still works with a rule, make the same change in your cache or performance plugin (for example WP Rocket, LiteSpeed Cache, Perfmatters or FlyingPress). Rules here are saved for your user only and are never applied to visitors.', 'nahnu-asset-scanner' ); ?></p>
+				</div><!-- /#fas-panel-test -->
+
 				<!-- Settings panel -->
 				<div id="fas-panel-settings" class="fas-panel" data-panel="settings">
 					<div class="fas-settings-grid">
@@ -384,8 +498,8 @@ class Admin {
 							<div class="fas-card__body">
 								<form id="fas-settings-form">
 									<div class="fas-field-row">
-										<label for="fas-scan-timeout"><?php esc_html_e( 'Page timeout (seconds)', 'nahnu-asset-scanner' ); ?></label>
-										<input id="nahnuas-scan-timeout" name="nahnuas_scan_timeout" type="number" min="5" max="120" value="<?php echo absint( get_option( 'nahnuas_scan_timeout', 15 ) ); ?>" style="width:80px;">
+										<label for="nahnuas-scan-timeout"><?php esc_html_e( 'Page timeout (seconds)', 'nahnu-asset-scanner' ); ?></label>
+										<input id="nahnuas-scan-timeout" name="nahnuas_scan_timeout" type="number" min="5" max="120" value="<?php echo absint( get_option( 'nahnuas_scan_timeout', Scanner::DEFAULT_TIMEOUT ) ); ?>" style="width:80px;">
 										<span style="font-size:12px;color:#6B7280;margin-left:8px;"><?php esc_html_e( '5–120 seconds. Increase for slow pages.', 'nahnu-asset-scanner' ); ?></span>
 									</div>
 									<div class="fas-field-row" style="margin-top:16px;">
@@ -394,7 +508,7 @@ class Admin {
 										<span style="font-size:12px;color:#6B7280;"><?php esc_html_e( 'One URL per line. Use for pages not available in the picker (e.g. external checkout pages).', 'nahnu-asset-scanner' ); ?></span>
 									</div>
 									<div style="margin-top:16px;">
-										<button type="button" id="fas-save-settings" class="fas-btn fas-btn--primary fas-btn--sm"><?php esc_html_e( 'Save', 'nahnu-asset-scanner' ); ?></button>
+										<button type="button" id="fas-save-settings" class="fas-btn fas-btn--solid fas-btn--sm"><?php esc_html_e( 'Save', 'nahnu-asset-scanner' ); ?></button>
 										<span id="fas-settings-status" style="font-size:12px;margin-left:10px;color:#6B7280;"></span>
 									</div>
 								</form>
@@ -417,6 +531,26 @@ class Admin {
 
 					<h3 class="fas-about-section-title"><?php esc_html_e( 'Using with Cache &amp; Performance Plugins', 'nahnu-asset-scanner' ); ?></h3>
 					<div class="fas-use-cases-grid">
+
+						<div class="fas-use-case-card">
+							<div class="fas-use-case-card__icon">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 3h6M10 3v6.5L4.6 18.3A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.7L14 9.5V3"/><path d="M7.5 15h9"/></svg>
+							</div>
+							<div>
+								<strong><?php esc_html_e( 'Test Lab', 'nahnu-asset-scanner' ); ?></strong>
+								<p><?php esc_html_e( 'Preview any page with scripts or stylesheets turned off, deferred or delayed before you change your cache plugin. Add ?nahnuas_test=1 to a page address while logged in as an administrator. A panel lists every file on the page with the plugin behind it and shows any JavaScript errors your changes cause. Only you see the test; visitors always get the normal page.', 'nahnu-asset-scanner' ); ?></p>
+							</div>
+						</div>
+
+						<div class="fas-use-case-card">
+							<div class="fas-use-case-card__icon">
+								<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
+							</div>
+							<div>
+								<strong><?php esc_html_e( 'JS Defer &amp; Delay', 'nahnu-asset-scanner' ); ?></strong>
+								<p><?php esc_html_e( 'The JS tab lists every script loaded on your pages with its file path, version, defer/async status, first- or third-party origin, and the plugin that owns it. Use it to decide which scripts are safe to defer or delay in WP Rocket, LiteSpeed Cache, NitroPack, or Hummingbird. First-party plugin scripts such as the WooCommerce cart usually need to load immediately; third-party trackers such as Google Analytics or Hotjar are good candidates for delay.', 'nahnu-asset-scanner' ); ?></p>
+							</div>
+						</div>
 
 						<div class="fas-use-case-card">
 							<div class="fas-use-case-card__icon">
@@ -475,7 +609,7 @@ class Admin {
 								<span class="fas-credit-card__name">WordPress Plugin Cookie Database</span>
 								<span class="fas-credit-card__license">Bundled</span>
 							</div>
-							<p class="fas-credit-card__desc"><?php esc_html_e( '600+ cookie patterns covering 400+ WordPress plugins and services — built and maintained as part of this plugin. Inspired by the FAZ Cookie Manager project (Fabio D&#39;Alessandro, GPL-3.0) and the broader WordPress ecosystem. Covers WooCommerce, membership plugins, LMS platforms, builders, security plugins, analytics services, ad networks, and more. No external API needed — updated with plugin releases.', 'nahnu-asset-scanner' ); ?></p>
+							<p class="fas-credit-card__desc"><?php esc_html_e( '600+ cookie patterns covering 400+ WordPress plugins and services, built and maintained as part of this plugin. Covers WooCommerce, membership plugins, LMS platforms, builders, security plugins, analytics services, ad networks, and more. No external API needed: the data is updated with plugin releases.', 'nahnu-asset-scanner' ); ?></p>
 							<div class="fas-credit-card__meta">
 								<span>&#128100; Nahnu Plugins</span>
 								<a href="https://www.nahnuplugins.com" target="_blank" rel="noopener">nahnuplugins.com</a>
@@ -487,7 +621,7 @@ class Admin {
 								<span class="fas-credit-card__name">WordPress</span>
 								<span class="fas-credit-card__license">GPL-2.0+</span>
 							</div>
-							<p class="fas-credit-card__desc"><?php esc_html_e( 'Built on WordPress core APIs: WP_Query, dbDelta, the WP HTTP API, WP-Cron, and the Settings API. Follows WordPress coding standards and the plugin review guidelines.', 'nahnu-asset-scanner' ); ?></p>
+							<p class="fas-credit-card__desc"><?php esc_html_e( 'Built on WordPress core APIs: the WP HTTP API, dbDelta, the Options API, and admin-ajax. Follows WordPress coding standards and the plugin review guidelines.', 'nahnu-asset-scanner' ); ?></p>
 							<div class="fas-credit-card__meta">
 								<span>&#128100; WordPress.org</span>
 								<a href="https://wordpress.org" target="_blank" rel="noopener">wordpress.org</a>
@@ -499,7 +633,8 @@ class Admin {
 
 					<div class="fas-about-footer">
 						<p><?php printf(
-							esc_html__( 'Nahnu Asset Scanner is free software released under the %s license. Built with &#10084; by %s.', 'nahnu-asset-scanner' ),
+							/* translators: 1: license name linked to the license text, 2: author name linked to the author website. */
+							esc_html__( 'Nahnu Asset Scanner is free software released under the %1$s license. Built with &#10084; by %2$s.', 'nahnu-asset-scanner' ),
 							'<a href="https://www.gnu.org/licenses/gpl-2.0.html" target="_blank" rel="noopener">GPL-2.0+</a>',
 							'<a href="https://www.nahnuplugins.com" target="_blank" rel="noopener">Nahnu Plugins</a>'
 						); ?></p>
@@ -519,61 +654,30 @@ class Admin {
 	// -------------------------------------------------------------------------
 
 	public function ajax_picker_browse(): void {
-		$this->verify_nonce();
-		global $wpdb;
+		$this->authorize( check_ajax_referer( self::NONCE, 'nonce', false ) );
 
 		$search = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
-		$type   = isset( $_POST['ptype'] )  ? sanitize_key( wp_unslash( $_POST['ptype'] ) )          : '';
-		$page   = isset( $_POST['paged'] )  ? max( 1, absint( wp_unslash( $_POST['paged'] ) ) )                       : 1;
+		$type   = isset( $_POST['ptype'] ) ? sanitize_key( wp_unslash( $_POST['ptype'] ) ) : '';
+		$page   = isset( $_POST['paged'] ) ? max( 1, absint( wp_unslash( $_POST['paged'] ) ) ) : 1;
 		$per    = 10;
-		$offset = ( $page - 1 ) * $per;
 
 		$selected_ids = array_map( 'intval', (array) get_option( 'nahnuas_selected_post_ids', [] ) );
 
-		// Get public post types, exclude attachment
-		$all_types = get_post_types( [ 'public' => true ], 'objects' );
-		unset( $all_types['attachment'] );
-
-		if ( $type && isset( $all_types[ $type ] ) ) {
-			$type_names = [ $type ];
-		} else {
-			$type_names = array_keys( $all_types );
-		}
-
-		if ( empty( $type_names ) ) {
-			$type_names = [ 'post', 'page' ];
-		}
-
-		$in = "'" . implode( "','", array_map( 'esc_sql', $type_names ) ) . "'";
-
-		$search_sql = '';
-		if ( $search !== '' ) {
-			$like       = '%' . $wpdb->esc_like( $search ) . '%';
-			$search_sql = $wpdb->prepare( ' AND post_title LIKE %s', $like );
-		}
-
-		$where = "post_status = 'publish' AND post_type IN ($in)$search_sql";
-		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE $where" ); // $in safe: esc_sql'd from get_post_types(); $search_sql uses prepare()
-		$rows  = $wpdb->get_results( $wpdb->prepare(
-			"SELECT ID, post_title, post_type FROM {$wpdb->posts} WHERE $where ORDER BY post_title ASC LIMIT %d OFFSET %d",
-			$per, $offset
-		) );
+		// All SQL lives in DB::browse_posts() and goes through $wpdb->prepare().
+		$browse    = DB::browse_posts( $search, $type, $page, $per );
+		$all_types = $browse['all_types'];
+		$total     = (int) $browse['total'];
 
 		$items = [];
-		foreach ( $rows as $row ) {
+		foreach ( $browse['rows'] as $row ) {
 			$pt      = $all_types[ $row->post_type ] ?? null;
 			$items[] = [
 				'id'    => (int) $row->ID,
-				'title' => $row->post_title ?: '(no title)',
+				'title' => $row->post_title ?: __( '(no title)', 'nahnu-asset-scanner' ),
 				'type'  => $row->post_type,
 				'label' => $pt ? ( $pt->labels->singular_name ?: $pt->label ) : ucfirst( $row->post_type ),
 				'sel'   => in_array( (int) $row->ID, $selected_ids, true ),
 			];
-		}
-
-		$types = [];
-		foreach ( $all_types as $k => $obj ) {
-			$types[] = [ 'k' => $k, 'l' => $obj->labels->singular_name ?: $obj->label ];
 		}
 
 		wp_send_json_success( [
@@ -582,8 +686,7 @@ class Admin {
 			'pages'   => max( 1, (int) ceil( $total / $per ) ),
 			'page'    => $page,
 			'sel_ids' => $selected_ids,
-			'types'   => $types,
-			'debug'   => [ 'where' => $where, 'types' => $type_names, 'total' => $total ],
+			'types'   => $browse['types'],
 		] );
 	}
 
@@ -592,20 +695,14 @@ class Admin {
 	// -------------------------------------------------------------------------
 
 	public function ajax_start_scan(): void {
-		$this->verify_nonce();
+		$this->authorize( check_ajax_referer( self::NONCE, 'nonce', false ) );
 
-		// Create scan record
 		$scan_id = DB::create_scan();
 		if ( ! $scan_id ) {
-			wp_send_json_error( [ 'message' => 'Failed to create scan record.' ] );
-			return;
+			wp_send_json_error( [ 'message' => __( 'Could not create the scan record.', 'nahnu-asset-scanner' ) ] );
 		}
-		DB::reset_domain_cache(); // clear in-memory dedup cache for fresh scan
+		DB::reset_domain_cache();
 
-		// Ensure cookie database is loaded — fetch in background if not yet cached.
-		// This runs once (transient lasts 7 days) so it doesn't slow down every scan.
-
-		// Get page list
 		$pages = Scanner::get_pages_to_scan();
 
 		wp_send_json_success( [
@@ -620,22 +717,20 @@ class Admin {
 	// -------------------------------------------------------------------------
 
 	public function ajax_scan_page(): void {
-		$this->verify_nonce();
+		$this->authorize( check_ajax_referer( self::NONCE, 'nonce', false ) );
 
 		$scan_id   = isset( $_POST['scan_id'] ) ? absint( wp_unslash( $_POST['scan_id'] ) ) : 0;
 		$url       = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
-		$page_type = isset( $_POST['page_type'] ) ? sanitize_text_field( wp_unslash( $_POST['page_type'] ) ) : 'page';
+		$page_type = isset( $_POST['page_type'] ) ? sanitize_key( wp_unslash( $_POST['page_type'] ) ) : 'page';
 		$index     = isset( $_POST['index'] ) ? absint( wp_unslash( $_POST['index'] ) ) : 0;
 
 		if ( ! $scan_id || ! $url ) {
-			wp_send_json_error( [ 'message' => 'Missing scan_id or url.' ] );
-			return;
+			wp_send_json_error( [ 'message' => __( 'Missing scan ID or URL.', 'nahnu-asset-scanner' ) ] );
 		}
 
 		// Only allow http/https — block file://, ftp://, internal IPs, etc.
 		if ( ! wp_http_validate_url( $url ) ) {
-			wp_send_json_error( [ 'message' => 'Invalid URL.' ] );
-			return;
+			wp_send_json_error( [ 'message' => __( 'Invalid URL.', 'nahnu-asset-scanner' ) ] );
 		}
 
 		$result = Scanner::scan_page( $scan_id, $url, $page_type );
@@ -648,12 +743,11 @@ class Admin {
 	// -------------------------------------------------------------------------
 
 	public function ajax_complete_scan(): void {
-		$this->verify_nonce();
+		$this->authorize( check_ajax_referer( self::NONCE, 'nonce', false ) );
 
 		$scan_id = isset( $_POST['scan_id'] ) ? absint( wp_unslash( $_POST['scan_id'] ) ) : 0;
 		if ( ! $scan_id ) {
-			wp_send_json_error( [ 'message' => 'Missing scan_id.' ] );
-			return;
+			wp_send_json_error( [ 'message' => __( 'Missing scan ID.', 'nahnu-asset-scanner' ) ] );
 		}
 
 		$scan = DB::finalize_scan( $scan_id );
@@ -666,12 +760,13 @@ class Admin {
 	// -------------------------------------------------------------------------
 
 	public function ajax_get_results(): void {
-		$this->verify_nonce();
+		$this->authorize( check_ajax_referer( self::NONCE, 'nonce', false ) );
 
-		$tab         = isset( $_POST['tab'] ) ? sanitize_key( $_POST['tab'] ) : 'js';
-		$page        = isset( $_POST['paged'] ) ? max( 1, absint( wp_unslash( $_POST['paged'] ) ) ) : 1;
-		$search      = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
-		$third_party = ( isset( $_POST['third_party'] ) && $_POST['third_party'] !== '' ) ? absint( sanitize_text_field( wp_unslash( $_POST['third_party'] ) ) ) : null;
+		$tab    = $this->requested_tab();
+		$page   = isset( $_POST['paged'] ) ? max( 1, absint( wp_unslash( $_POST['paged'] ) ) ) : 1;
+		$search = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+		// '1' = third-party only, '0' = first-party only, '' = all. DB::normalize_party() maps it.
+		$third_party = isset( $_POST['third_party'] ) ? sanitize_key( wp_unslash( $_POST['third_party'] ) ) : '';
 
 		$args = [
 			'page'        => $page,
@@ -681,24 +776,13 @@ class Admin {
 
 		$items = DB::get_results( $tab, $args );
 		$total = DB::get_results_count( $tab, $args );
-		$pages = (int) ceil( $total / 10 );
 
-		foreach ( $items as &$item ) {
-			// $items rows are ARRAY_A — use array notation throughout
-			// (object notation on arrays silently fails in PHP 8+)
-
-			// Vendor badge for JS/CSS/Domains
-			if ( ! empty( $item['domain'] ) ) {
-				$item['badge'] = Scanner::get_badge( $item['domain'] );
-			}
-
-		}
-		unset( $item );
+		$items = self::enrich_results( $tab, $items );
 
 		wp_send_json_success( [
 			'items'        => $items,
 			'total'        => $total,
-			'pages'        => $pages,
+			'pages'        => (int) ceil( $total / 10 ),
 			'current_page' => $page,
 			'tab'          => $tab,
 		] );
@@ -710,124 +794,118 @@ class Admin {
 
 	public function ajax_export_csv(): void {
 		if ( ! current_user_can( self::CAP ) ) {
-			wp_die( 'Insufficient permissions.' );
+			wp_die( esc_html__( 'Insufficient permissions.', 'nahnu-asset-scanner' ), '', [ 'response' => 403 ] );
 		}
-		if ( ! isset( $_POST['nahnuas_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nahnuas_nonce'] ) ), self::NONCE ) ) {
-			wp_die( 'Bad nonce.' );
+		$nonce = isset( $_POST['nahnuas_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nahnuas_nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, self::NONCE ) ) {
+			wp_die( esc_html__( 'Your session expired. Reload the page and try again.', 'nahnu-asset-scanner' ), '', [ 'response' => 403 ] );
 		}
 
-		$tab   = isset( $_POST['tab'] ) ? sanitize_key( $_POST['tab'] ) : 'js';
-		$items = DB::get_results( $tab, [ 'page' => 1, 'per_page' => 99999 ] );
+		$tab   = $this->requested_tab();
+		$items = DB::get_results( $tab, [
+			'page'        => 1,
+			'per_page'    => 100000,
+			'search'      => isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '',
+			'third_party' => isset( $_POST['third_party'] ) ? sanitize_key( wp_unslash( $_POST['third_party'] ) ) : '',
+		] );
 
-		$filename = 'fas-' . $tab . '-export-' . gmdate( 'Ymd-His' ) . '.csv';
+		$filename = 'nahnu-asset-scanner-' . $tab . '-' . gmdate( 'Ymd-His' ) . '.csv';
 
+		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
-		header( 'Pragma: no-cache' );
-		header( 'Expires: 0' );
+		header( 'X-Content-Type-Options: nosniff' );
 
-		// Helper: rows come back as assoc arrays; this normalises field access
-		$f = function( $row, string $key, $default = '' ) {
-			return is_array( $row ) ? ( $row[ $key ] ?? $default ) : ( $row->$key ?? $default );
-		};
+		$f = static fn( array $row, string $key, $default = '' ) => $row[ $key ] ?? $default;
 
-		// Pages are stored as ||| separated URLs — convert to comma-separated titles
-		$pages_str = function( $raw ): string {
-			if ( empty( $raw ) ) { return ''; }
-			$urls  = array_filter( array_map( 'trim', explode( '|||', $raw ) ) );
-			$names = array_map( function( $u ) {
-				try {
-					$path  = parse_url( $u, PHP_URL_PATH );
-					$parts = array_filter( explode( '/', trim( $path ?? '', '/' ) ) );
-					$last  = $parts ? end( $parts ) : 'Home';
-					return ucfirst( str_replace( '-', ' ', $last ) );
-				} catch ( \Exception $e ) {
-					return $u;
-				}
-			}, $urls );
-			return implode( ', ', $names );
-		};
-
-		// CSV injection guard: prefix cells starting with =, +, -, @, tab, CR with a tab.
-		// These characters can trigger formula execution in spreadsheet apps.
-		$csv_safe = function( $val ): string {
-			$val = (string) $val;
-			if ( $val !== '' && in_array( $val[0], [ '=', '+', '-', '@', "\t", "\r" ], true ) ) {
-				return "\t" . $val;
+		// Pages are stored as |||-separated URLs; show the last path segment of each.
+		$pages_str = static function ( $raw ): string {
+			if ( empty( $raw ) ) {
+				return '';
 			}
-			return $val;
+			$names = [];
+			foreach ( array_filter( array_map( 'trim', explode( '|||', (string) $raw ) ) ) as $u ) {
+				$parts   = array_filter( explode( '/', trim( (string) wp_parse_url( $u, PHP_URL_PATH ), '/' ) ) );
+				$last    = $parts ? end( $parts ) : 'Home';
+				$names[] = ucfirst( str_replace( '-', ' ', $last ) );
+			}
+			return implode( ', ', $names );
 		};
 
 		$out = fopen( 'php://output', 'w' );
 
+		// Every row goes through write_csv_row(), which neutralises spreadsheet formulas
+		// in every cell and passes an explicit escape argument (PHP 8.4+ deprecation).
 		switch ( $tab ) {
 			case 'js':
-				fputcsv( $out, [ 'URL', 'Domain', 'Source', 'Inline', 'Defer', 'Async', 'Version', 'Pages' ] );
+				$this->write_csv_row( $out, [ 'URL', 'Domain', 'Source', 'Inline', 'Defer', 'Async', 'Version', 'Pages' ] );
 				foreach ( $items as $r ) {
 					$attrs = json_decode( (string) $f( $r, 'attributes_json', '{}' ), true ) ?: [];
-					fputcsv( $out, [
+					$this->write_csv_row( $out, [
 						$f( $r, 'asset_url' ),
 						$f( $r, 'domain' ),
 						$f( $r, 'is_third_party' ) ? 'third-party' : 'first-party',
 						$f( $r, 'is_inline' ) ? 'yes' : 'no',
 						! empty( $attrs['defer'] ) ? 'yes' : 'no',
 						! empty( $attrs['async'] ) ? 'yes' : 'no',
-						$csv_safe( $attrs['version'] ?? $f( $r, 'version', '' ) ),
-						$csv_safe( $pages_str( $f( $r, 'pages' ) ) ),
+						$attrs['version'] ?? '',
+						$pages_str( $f( $r, 'pages' ) ),
 					] );
 				}
 				break;
 
 			case 'css':
-				fputcsv( $out, [ 'URL', 'Domain', 'Source', 'Inline', 'Media', 'Version', 'Pages' ] );
+				$this->write_csv_row( $out, [ 'URL', 'Domain', 'Source', 'Inline', 'Media', 'Version', 'Pages' ] );
 				foreach ( $items as $r ) {
 					$attrs = json_decode( (string) $f( $r, 'attributes_json', '{}' ), true ) ?: [];
-					fputcsv( $out, [
+					$this->write_csv_row( $out, [
 						$f( $r, 'asset_url' ),
 						$f( $r, 'domain' ),
 						$f( $r, 'is_third_party' ) ? 'third-party' : 'first-party',
 						$f( $r, 'is_inline' ) ? 'yes' : 'no',
-						$csv_safe( $attrs['media'] ?? $f( $r, 'media', 'all' ) ),
-						$csv_safe( $attrs['version'] ?? $f( $r, 'version', '' ) ),
-						$csv_safe( $pages_str( $f( $r, 'pages' ) ) ),
+						$attrs['media'] ?? 'all',
+						$attrs['version'] ?? '',
+						$pages_str( $f( $r, 'pages' ) ),
 					] );
 				}
 				break;
 
 			case 'cookies':
-				fputcsv( $out, [ 'Name', 'Domain', 'Path', 'Source', 'Session', 'Expires', 'Secure', 'HttpOnly', 'SameSite', 'Category', 'Pages' ] );
+				$this->write_csv_row( $out, [ 'Name', 'Domain', 'Path', 'Source', 'Plugin / Service', 'Session', 'Expires', 'Secure', 'HttpOnly', 'SameSite', 'Category', 'Pages' ] );
 				foreach ( $items as $r ) {
-					fputcsv( $out, [
-						$csv_safe( $f( $r, 'cookie_name' ) ),
-						$csv_safe( $f( $r, 'cookie_domain' ) ),
-						$csv_safe( $f( $r, 'cookie_path' ) ),
+					$match = Plugin_Cookies::lookup( (string) $f( $r, 'cookie_name' ) );
+					$this->write_csv_row( $out, [
+						$f( $r, 'cookie_name' ),
+						$f( $r, 'cookie_domain' ),
+						$f( $r, 'cookie_path' ),
 						$f( $r, 'is_third_party' ) ? 'third-party' : 'first-party',
+						$match['plugin'] ?? '',
 						$f( $r, 'is_session' ) ? 'yes' : 'no',
-						$csv_safe( $f( $r, 'expiration' ) ),
+						$f( $r, 'expiration' ),
 						$f( $r, 'is_secure' ) ? 'yes' : 'no',
 						$f( $r, 'is_httponly' ) ? 'yes' : 'no',
-						$csv_safe( $f( $r, 'samesite' ) ),
+						$f( $r, 'samesite' ),
 						$f( $r, 'category' ),
-						$csv_safe( $pages_str( $f( $r, 'pages' ) ) ),
+						$pages_str( $f( $r, 'pages' ) ),
 					] );
 				}
 				break;
 
 			case 'domains':
-				fputcsv( $out, [ 'Domain', 'Source Types', 'Source', 'Pages', 'Occurrences' ] );
+				$this->write_csv_row( $out, [ 'Domain', 'Source Types', 'Source', 'Pages', 'Occurrences' ] );
 				foreach ( $items as $r ) {
-					fputcsv( $out, [
+					$this->write_csv_row( $out, [
 						$f( $r, 'domain' ),
 						$f( $r, 'source_types' ),
 						$f( $r, 'is_third_party' ) ? 'third-party' : 'first-party',
-						$csv_safe( $pages_str( $f( $r, 'pages' ) ) ),
-						$f( $r, 'item_count', 0 ),
+						$pages_str( $f( $r, 'pages' ) ),
+						(int) $f( $r, 'item_count', 0 ),
 					] );
 				}
 				break;
 		}
 
-		fclose( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- php://output stream, not a file.
 		exit;
 	}
 
@@ -836,11 +914,11 @@ class Admin {
 	// -------------------------------------------------------------------------
 
 	public function ajax_clear_data(): void {
-		$this->verify_nonce();
+		$this->authorize( check_ajax_referer( self::NONCE, 'nonce', false ) );
 
 		DB::clear_all();
 
-		wp_send_json_success( [ 'message' => 'All scan data cleared.' ] );
+		wp_send_json_success( [ 'message' => __( 'All scan data cleared.', 'nahnu-asset-scanner' ) ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -848,7 +926,7 @@ class Admin {
 	// -------------------------------------------------------------------------
 
 	public function ajax_save_settings(): void {
-		$this->verify_nonce();
+		$this->authorize( check_ajax_referer( self::NONCE, 'nonce', false ) );
 
 		$scan_timeout = isset( $_POST['nahnuas_scan_timeout'] ) ? max( 5, min( 120, absint( wp_unslash( $_POST['nahnuas_scan_timeout'] ) ) ) ) : 15;
 		$custom_urls  = isset( $_POST['nahnuas_custom_urls'] ) ? sanitize_textarea_field( wp_unslash( $_POST['nahnuas_custom_urls'] ) ) : '';
@@ -856,7 +934,7 @@ class Admin {
 		update_option( 'nahnuas_scan_timeout', $scan_timeout );
 		update_option( 'nahnuas_custom_urls',  $custom_urls );
 
-		wp_send_json_success( [ 'message' => 'Settings saved.' ] );
+		wp_send_json_success( [ 'message' => __( 'Settings saved.', 'nahnu-asset-scanner' ) ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -864,12 +942,12 @@ class Admin {
 	// -------------------------------------------------------------------------
 
 	public function ajax_picker_save(): void {
-		$this->verify_nonce();
+		$this->authorize( check_ajax_referer( self::NONCE, 'nonce', false ) );
 
 		$raw = isset( $_POST['ids'] ) ? sanitize_text_field( wp_unslash( $_POST['ids'] ) ) : '[]';
 		$ids = json_decode( $raw, true );
 		if ( ! is_array( $ids ) ) { $ids = []; }
-		$ids = array_values( array_slice( array_unique( array_map( 'intval', $ids ) ), 0, 10 ) );
+		$ids = array_values( array_slice( array_unique( array_filter( array_map( 'intval', $ids ), static fn( int $id ): bool => $id > 0 ) ), 0, 10 ) );
 
 		update_option( 'nahnuas_selected_post_ids', $ids );
 
@@ -877,26 +955,76 @@ class Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// AJAX: Refresh Open Cookie Database
-	// -------------------------------------------------------------------------
-
-
-
-
-
-
-	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
 
-	private function verify_nonce(): void {
-		if ( ! current_user_can( self::CAP ) ) {
-			wp_send_json_error( [ 'message' => 'Insufficient permissions.' ], 403 );
+	/**
+	 * Stop the request unless the nonce (checked by the caller with
+	 * check_ajax_referer()) is valid and the user may manage options.
+	 *
+	 * @param int|false $nonce_ok Return value of check_ajax_referer( …, false ).
+	 */
+	/**
+	 * Add vendor badges and cookie plugin names to result rows.
+	 *
+	 * @param string                           $tab   Result tab.
+	 * @param array<int,array<string,mixed>>   $items Rows from DB::get_results().
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function enrich_results( string $tab, array $items ): array {
+		foreach ( $items as &$item ) {
+			if ( ! empty( $item['domain'] ) ) {
+				$item['badge'] = Scanner::get_badge( $item['domain'] );
+			}
+			// Name the plugin/service behind each cookie from the bundled database.
+			if ( 'cookies' === $tab && ! empty( $item['cookie_name'] ) ) {
+				$match = Plugin_Cookies::lookup( $item['cookie_name'] );
+				if ( $match ) {
+					$item['plugin_source']      = $match['plugin'];
+					$item['cookie_description'] = $match['description'];
+				}
+			}
 		}
+		unset( $item );
+		return $items;
+	}
 
-		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, self::NONCE ) ) {
-			wp_send_json_error( [ 'message' => 'Invalid nonce.' ], 403 );
+	private function authorize( int|false $nonce_ok ): void {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_send_json_error( [ 'message' => __( 'Insufficient permissions.', 'nahnu-asset-scanner' ) ], 403 );
 		}
+		if ( false === $nonce_ok ) {
+			wp_send_json_error( [ 'message' => __( 'Your session expired. Reload the page and try again.', 'nahnu-asset-scanner' ) ], 403 );
+		}
+	}
+
+	/** The requested results tab, limited to the known tabs (defaults to js). */
+	private function requested_tab(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- callers verify the nonce first.
+		$tab = isset( $_POST['tab'] ) ? sanitize_key( wp_unslash( $_POST['tab'] ) ) : 'js';
+		return in_array( $tab, self::RESULT_TABS, true ) ? $tab : 'js';
+	}
+
+	/**
+	 * Write one CSV row with every cell neutralised against formula injection.
+	 * Cells starting with = + - @ tab or CR are prefixed with a tab so spreadsheet
+	 * apps treat them as text. The escape argument is passed explicitly because its
+	 * implicit default is deprecated as of PHP 8.4.
+	 *
+	 * @param resource $handle Output stream.
+	 * @param array    $cells  Row values.
+	 */
+	private function write_csv_row( $handle, array $cells ): void {
+		$safe = array_map(
+			static function ( $value ): string {
+				$value = (string) $value;
+				if ( '' !== $value && in_array( $value[0], [ '=', '+', '-', '@', "\t", "\r" ], true ) ) {
+					return "\t" . $value;
+				}
+				return $value;
+			},
+			$cells
+		);
+		fputcsv( $handle, $safe, ',', '"', '' );
 	}
 }

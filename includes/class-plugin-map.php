@@ -3,12 +3,12 @@
  * Plugin_Map — WordPress plugin slug → readable name mapping.
  *
  * Used to convert URL paths like /wp-content/plugins/woocommerce/
- * into "WooCommerce".  Inspired by FAZ Cookie Manager's Known_Providers approach.
+ * into "WooCommerce".
  *
- * @package NahnuFAS
+ * @package NahnuAS
  */
 
-namespace NahnuFAS;
+namespace NahnuAS;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 

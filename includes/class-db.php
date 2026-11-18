@@ -1,7 +1,20 @@
 <?php
-namespace NahnuFAS;
+/**
+ * Database layer for the plugin's own tables.
+ *
+ * The scan tables (nahnuas_*) are custom tables, so they are read and written
+ * with $wpdb directly. Scan data is written and read back in the same admin
+ * session and changes with every scan, so object caching would only serve
+ * stale rows; queries run only on the plugin's admin screen and abilities.
+ *
+ * @package NahnuAS
+ */
+
+namespace NahnuAS;
 
 defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom tables, see above.
 
 class DB {
 
@@ -122,6 +135,18 @@ class DB {
 		return $row ?: null;
 	}
 
+	/**
+	 * Distinct page URLs scanned in a scan, in scan order.
+	 *
+	 * @return string[]
+	 */
+	public static function get_page_urls( int $scan_id ): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table, admin screen only.
+		$urls = $wpdb->get_col( $wpdb->prepare( "SELECT url FROM {$wpdb->prefix}nahnuas_pages WHERE scan_id = %d ORDER BY id ASC", $scan_id ) );
+		return array_values( array_unique( array_map( 'strval', $urls ) ) );
+	}
+
 	public static function get_scan( int $id ): ?array {
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}nahnuas_scans WHERE id = %d", $id ), ARRAY_A );
@@ -208,13 +233,15 @@ class DB {
 		$per_page    = isset( $args['per_page'] ) ? (int) $args['per_page'] : 10;
 		$offset      = ( $page - 1 ) * $per_page;
 		$search      = sanitize_text_field( $args['search'] ?? '' );
-		$third_party = $args['third_party'] ?? '';
+		$third_party = self::normalize_party( $args['third_party'] ?? '' );
 
 		if ( ! $scan_id ) {
 			$latest  = self::get_latest_scan();
 			$scan_id = $latest ? (int) $latest['id'] : 0;
 		}
-		if ( ! $scan_id ) return [];
+		if ( ! $scan_id ) {
+			return [];
+		}
 
 		switch ( $tab ) {
 			case 'js':
@@ -231,13 +258,15 @@ class DB {
 	public static function get_results_count( string $tab, array $args = [] ): int {
 		$scan_id     = (int) ( $args['scan_id'] ?? 0 );
 		$search      = sanitize_text_field( $args['search'] ?? '' );
-		$third_party = $args['third_party'] ?? '';
+		$third_party = self::normalize_party( $args['third_party'] ?? '' );
 
 		if ( ! $scan_id ) {
 			$latest  = self::get_latest_scan();
 			$scan_id = $latest ? (int) $latest['id'] : 0;
 		}
-		if ( ! $scan_id ) return 0;
+		if ( ! $scan_id ) {
+			return 0;
+		}
 
 		switch ( $tab ) {
 			case 'js':
@@ -249,6 +278,19 @@ class DB {
 				return self::count_domains( $scan_id, $search, $third_party );
 		}
 		return 0;
+	}
+
+	/**
+	 * Map the UI filter value to 'yes' (third-party only), 'no' (first-party only) or '' (all).
+	 * The dropdown sends '1' / '0'; 'yes' / 'no' are accepted for backwards compatibility.
+	 */
+	private static function normalize_party( mixed $value ): string {
+		$value = strtolower( trim( (string) $value ) );
+		return match ( $value ) {
+			'1', 'yes' => 'yes',
+			'0', 'no'  => 'no',
+			default    => '',
+		};
 	}
 
 	// -------------------------------------------------------------------------
@@ -266,8 +308,11 @@ class DB {
 			$params[] = $like;
 			$params[] = $like;
 		}
-		if ( $third_party === 'yes' ) $where[] = 'a.is_third_party = 1';
-		elseif ( $third_party === 'no' ) $where[] = 'a.is_third_party = 0';
+		if ( 'yes' === $third_party ) {
+			$where[] = 'a.is_third_party = 1';
+		} elseif ( 'no' === $third_party ) {
+			$where[] = 'a.is_third_party = 0';
+		}
 
 		$where_sql = implode( ' AND ', $where );
 		$params[]  = $limit;
@@ -277,7 +322,7 @@ class DB {
 					MIN(a.asset_url) AS asset_url,
 					a.domain,
 					a.is_inline,
-					a.is_third_party,
+					MAX(a.is_third_party) AS is_third_party,
 					MIN(a.attributes_json) AS attributes_json,
 					a.asset_url_hash,
 					GROUP_CONCAT(DISTINCT p.url ORDER BY p.url SEPARATOR '|||') AS pages,
@@ -291,6 +336,7 @@ class DB {
 				ORDER BY page_count DESC, MIN(a.asset_url) ASC
 				LIMIT %d OFFSET %d";
 
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is assembled only from fixed fragments with %d/%s placeholders; every value is bound here.
 		return $wpdb->get_results( $wpdb->prepare( $sql, ...$params ), ARRAY_A ) ?: [];
 	}
 
@@ -305,11 +351,15 @@ class DB {
 			$params[] = $like;
 			$params[] = $like;
 		}
-		if ( $third_party === 'yes' ) $where[] = 'is_third_party = 1';
-		elseif ( $third_party === 'no' ) $where[] = 'is_third_party = 0';
+		if ( 'yes' === $third_party ) {
+			$where[] = 'is_third_party = 1';
+		} elseif ( 'no' === $third_party ) {
+			$where[] = 'is_third_party = 0';
+		}
 
 		$where_sql = implode( ' AND ', $where );
 		$sql       = "SELECT COUNT(DISTINCT asset_url_hash) FROM {$wpdb->prefix}nahnuas_assets WHERE {$where_sql}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is assembled only from fixed fragments with %d/%s placeholders; every value is bound here.
 		return (int) $wpdb->get_var( $wpdb->prepare( $sql, ...$params ) );
 	}
 
@@ -328,17 +378,27 @@ class DB {
 			$params[] = $like;
 			$params[] = $like;
 		}
-		if ( $third_party === 'yes' ) $where[] = 'c.is_third_party = 1';
-		elseif ( $third_party === 'no' ) $where[] = 'c.is_third_party = 0';
+		if ( 'yes' === $third_party ) {
+			$where[] = 'c.is_third_party = 1';
+		} elseif ( 'no' === $third_party ) {
+			$where[] = 'c.is_third_party = 0';
+		}
 
 		$where_sql = implode( ' AND ', $where );
 		$params[]  = $limit;
 		$params[]  = $offset;
 
 		$sql = "SELECT
-					c.cookie_name, c.cookie_domain, c.cookie_path,
-					c.is_third_party, c.expiration, c.is_session,
-					c.is_secure, c.is_httponly, c.samesite, c.category,
+					c.cookie_name,
+					c.cookie_domain,
+					MIN(c.cookie_path) AS cookie_path,
+					MAX(c.is_third_party) AS is_third_party,
+					MAX(c.expiration) AS expiration,
+					MIN(c.is_session) AS is_session,
+					MAX(c.is_secure) AS is_secure,
+					MAX(c.is_httponly) AS is_httponly,
+					MAX(c.samesite) AS samesite,
+					COALESCE( MIN( NULLIF( c.category, 'unknown' ) ), 'unknown' ) AS category,
 					GROUP_CONCAT(DISTINCT p.url ORDER BY p.url SEPARATOR '|||') AS pages,
 					COUNT(DISTINCT p.id) AS page_count,
 					MIN(c.first_seen) AS first_seen,
@@ -350,6 +410,7 @@ class DB {
 				ORDER BY c.cookie_name ASC
 				LIMIT %d OFFSET %d";
 
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is assembled only from fixed fragments with %d/%s placeholders; every value is bound here.
 		return $wpdb->get_results( $wpdb->prepare( $sql, ...$params ), ARRAY_A ) ?: [];
 	}
 
@@ -364,11 +425,15 @@ class DB {
 			$params[] = $like;
 			$params[] = $like;
 		}
-		if ( $third_party === 'yes' ) $where[] = 'is_third_party = 1';
-		elseif ( $third_party === 'no' ) $where[] = 'is_third_party = 0';
+		if ( 'yes' === $third_party ) {
+			$where[] = 'is_third_party = 1';
+		} elseif ( 'no' === $third_party ) {
+			$where[] = 'is_third_party = 0';
+		}
 
 		$where_sql = implode( ' AND ', $where );
 		$sql       = "SELECT COUNT(DISTINCT CONCAT(cookie_name,'|',COALESCE(cookie_domain,''))) FROM {$wpdb->prefix}nahnuas_cookies WHERE {$where_sql}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is assembled only from fixed fragments with %d/%s placeholders; every value is bound here.
 		return (int) $wpdb->get_var( $wpdb->prepare( $sql, ...$params ) );
 	}
 
@@ -385,8 +450,11 @@ class DB {
 			$where[]  = 'd.domain LIKE %s';
 			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
 		}
-		if ( $third_party === 'yes' ) $where[] = 'd.is_third_party = 1';
-		elseif ( $third_party === 'no' ) $where[] = 'd.is_third_party = 0';
+		if ( 'yes' === $third_party ) {
+			$where[] = 'd.is_third_party = 1';
+		} elseif ( 'no' === $third_party ) {
+			$where[] = 'd.is_third_party = 0';
+		}
 
 		$where_sql = implode( ' AND ', $where );
 		$params[]  = $limit;
@@ -407,6 +475,7 @@ class DB {
 				ORDER BY item_count DESC, d.domain ASC
 				LIMIT %d OFFSET %d";
 
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is assembled only from fixed fragments with %d/%s placeholders; every value is bound here.
 		return $wpdb->get_results( $wpdb->prepare( $sql, ...$params ), ARRAY_A ) ?: [];
 	}
 
@@ -419,11 +488,15 @@ class DB {
 			$where[]  = 'domain LIKE %s';
 			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
 		}
-		if ( $third_party === 'yes' ) $where[] = 'is_third_party = 1';
-		elseif ( $third_party === 'no' ) $where[] = 'is_third_party = 0';
+		if ( 'yes' === $third_party ) {
+			$where[] = 'is_third_party = 1';
+		} elseif ( 'no' === $third_party ) {
+			$where[] = 'is_third_party = 0';
+		}
 
 		$where_sql = implode( ' AND ', $where );
 		$sql       = "SELECT COUNT(DISTINCT domain) FROM {$wpdb->prefix}nahnuas_domains WHERE {$where_sql}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is assembled only from fixed fragments with %d/%s placeholders; every value is bound here.
 		return (int) $wpdb->get_var( $wpdb->prepare( $sql, ...$params ) );
 	}
 
@@ -471,8 +544,7 @@ class DB {
 	public static function clear_all(): void {
 		global $wpdb;
 		foreach ( [ 'nahnuas_domains', 'nahnuas_cookies', 'nahnuas_assets', 'nahnuas_pages', 'nahnuas_scans' ] as $t ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from hardcoded array, no user input
-			$wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}{$t}" );
+			$wpdb->query( $wpdb->prepare( 'TRUNCATE TABLE %i', $wpdb->prefix . $t ) );
 		}
 	}
 
@@ -485,59 +557,31 @@ class DB {
 	 * Returns [ 'rows' => WP_Post[], 'total' => int, 'types' => array ]
 	 */
 	public static function browse_posts( string $search, string $type, int $page, int $per = 10 ): array {
-		global $wpdb;
-
 		$all_types = get_post_types( [ 'public' => true ], 'objects' );
 		unset( $all_types['attachment'] );
 
-		// Values come from get_post_types() — registered post type slugs, not user input.
-		// We still pass them through prepare() via %s placeholders to satisfy static analysis.
+		// Only registered public post types.
 		$type_names = ( $type && isset( $all_types[ $type ] ) ) ? [ $type ] : array_keys( $all_types );
 		if ( empty( $type_names ) ) { $type_names = [ 'post', 'page' ]; }
 
-		$offset       = max( 0, ( $page - 1 ) * $per );
-		$placeholders = implode( ', ', array_fill( 0, count( $type_names ), '%s' ) );
-
-		if ( $search !== '' ) {
-			$like = '%' . $wpdb->esc_like( $search ) . '%';
-
-			// COUNT query — post types + search term, all via prepare()
-			$total = (int) $wpdb->get_var(
-				$wpdb->prepare(
-					// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-					"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status = %s AND post_type IN ({$placeholders}) AND post_title LIKE %s",
-					array_merge( [ 'publish' ], $type_names, [ $like ] )
-				)
-			);
-
-			// Data query — same conditions + pagination
-			$rows = $wpdb->get_results(
-				$wpdb->prepare(
-					// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-					"SELECT ID, post_title, post_type FROM {$wpdb->posts} WHERE post_status = %s AND post_type IN ({$placeholders}) AND post_title LIKE %s ORDER BY post_title ASC LIMIT %d OFFSET %d",
-					array_merge( [ 'publish' ], $type_names, [ $like, $per, $offset ] )
-				)
-			) ?: [];
-
-		} else {
-			// COUNT query — post types only
-			$total = (int) $wpdb->get_var(
-				$wpdb->prepare(
-					// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-					"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status = %s AND post_type IN ({$placeholders})",
-					array_merge( [ 'publish' ], $type_names )
-				)
-			);
-
-			// Data query — post types + pagination
-			$rows = $wpdb->get_results(
-				$wpdb->prepare(
-					// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-					"SELECT ID, post_title, post_type FROM {$wpdb->posts} WHERE post_status = %s AND post_type IN ({$placeholders}) ORDER BY post_title ASC LIMIT %d OFFSET %d",
-					array_merge( [ 'publish' ], $type_names, [ $per, $offset ] )
-				)
-			) ?: [];
-		}
+		$query = new \WP_Query( [
+			'post_type'              => $type_names,
+			'post_status'            => 'publish',
+			's'                      => $search,
+			'search_columns'         => [ 'post_title' ],
+			'orderby'                => 'title',
+			'order'                  => 'ASC',
+			'posts_per_page'         => $per,
+			'paged'                  => max( 1, $page ),
+			'ignore_sticky_posts'    => true,
+			'update_post_meta_cache' => false,
+			'update_post_term_cache' => false,
+		] );
+		$rows  = array_map(
+			static fn( \WP_Post $p ): object => (object) [ 'ID' => $p->ID, 'post_title' => $p->post_title, 'post_type' => $p->post_type ],
+			$query->posts
+		);
+		$total = (int) $query->found_posts;
 
 		$types = [];
 		foreach ( $all_types as $k => $obj ) {

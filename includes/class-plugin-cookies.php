@@ -5,10 +5,10 @@
  * 600+ entries covering 400+ plugins, themes, and third-party services.
  * Lookup tiers: exact → prefix (longest first) → regex.
  *
- * @package NahnuFAS
+ * @package NahnuAS
  */
 
-namespace NahnuFAS;
+namespace NahnuAS;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -545,8 +545,6 @@ class Plugin_Cookies {
 		// ═══════════════════════════════════════════════════════════════════
 		// MISCELLANEOUS WORDPRESS PLUGINS
 		// ═══════════════════════════════════════════════════════════════════
-		'wpe-auth'                         => ['WP Engine','necessary','WP Engine auth.'],
-		'rsssl_consent'                    => ['Really Simple Security','necessary','RSSL consent.'],
 		'updraftplus'                      => ['UpdraftPlus','necessary','UpdraftPlus session.'],
 		'wpmailsmtp_redirect'              => ['WP Mail SMTP','necessary','WP Mail SMTP redirect.'],
 		'wp_consent_api'                   => ['WP Consent API','necessary','WP Consent API.'],
@@ -792,15 +790,61 @@ class Plugin_Cookies {
 
 	// ── Public API ────────────────────────────────────────────────────────────
 
-	public static function lookup( string $name ): ?array {
-		$lower = strtolower( trim( $name ) );
+	/** @var array<string,array>|null Lower-cased exact-name index, built on first lookup. */
+	private static ?array $exact_index = null;
 
-		if ( isset( self::$exact[ $lower ] ) ) {
-			return self::format( self::$exact[ $lower ] );
+	/** @var array<string,array>|null Lower-cased prefixes, longest first, built on first lookup. */
+	private static ?array $prefix_index = null;
+
+	/**
+	 * Build the lookup indexes once per request.
+	 *
+	 * - Keys are lower-cased so mixed-case entries (CONSENT, tawkUUID, …) match.
+	 * - "Exact" entries ending in _ - or . are really prefixes (woocommerce_session_,
+	 *   cookielawinfo-checkbox-, …): a real cookie always has more after them.
+	 * - Prefixes are sorted longest first so wp_consent_ wins over wp_.
+	 */
+	private static function build_indexes(): void {
+		if ( null !== self::$exact_index ) {
+			return;
 		}
 
-		foreach ( self::$prefixes as $prefix => $entry ) {
-			if ( str_starts_with( $lower, strtolower( $prefix ) ) ) {
+		$exact    = [];
+		$prefixes = [];
+
+		foreach ( self::$exact as $key => $entry ) {
+			$key = strtolower( $key );
+			if ( in_array( substr( $key, -1 ), [ '_', '-', '.' ], true ) ) {
+				$prefixes[ $key ] ??= $entry;
+			} else {
+				$exact[ $key ] ??= $entry;
+			}
+		}
+
+		foreach ( self::$prefixes as $key => $entry ) {
+			$prefixes[ strtolower( $key ) ] ??= $entry;
+		}
+
+		uksort( $prefixes, static fn( string $a, string $b ): int => strlen( $b ) <=> strlen( $a ) ?: strcmp( $a, $b ) );
+
+		self::$exact_index  = $exact;
+		self::$prefix_index = $prefixes;
+	}
+
+	public static function lookup( string $name ): ?array {
+		$lower = strtolower( trim( $name ) );
+		if ( '' === $lower ) {
+			return null;
+		}
+
+		self::build_indexes();
+
+		if ( isset( self::$exact_index[ $lower ] ) ) {
+			return self::format( self::$exact_index[ $lower ] );
+		}
+
+		foreach ( self::$prefix_index as $prefix => $entry ) {
+			if ( str_starts_with( $lower, $prefix ) ) {
 				return self::format( $entry );
 			}
 		}

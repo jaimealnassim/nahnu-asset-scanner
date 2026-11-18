@@ -1,14 +1,893 @@
-# Nahnu Asset Scanner translation template
-# Copyright (C) 2025 Nahnu Plugins
-# This file is distributed under the same license as the Nahnu Asset Scanner plugin.
-#
-#, fuzzy
+# Copyright (C) 2026 Nahnu Plugins
+# This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Nahnu Asset Scanner 1.0.0\n"
-"Report-Msgid-Bugs-To: https://www.nahnuplugins.com/support/\n"
-"POT-Creation-Date: 2025-01-01 00:00+0000\n"
+"Project-Id-Version: Nahnu Asset Scanner 1.0.2\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/nahnu-asset-scanner\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Domain: nahnu-asset-scanner\n"
+"POT-Creation-Date: 2026-11-18T19:01:45+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: nahnu-asset-scanner\n"
+
+#. Plugin Name of the plugin
+#: nahnu-asset-scanner.php
+#: includes/class-admin.php:53
+#: includes/class-admin.php:144
+msgid "Nahnu Asset Scanner"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: nahnu-asset-scanner.php
+msgid "https://frontendassetscanner.com"
+msgstr ""
+
+#. Description of the plugin
+#: nahnu-asset-scanner.php
+msgid "Scan your site's front end for JavaScript, CSS, cookies and external domains, then safely test turning scripts and styles off, deferring or delaying them before you change your cache plugin."
+msgstr ""
+
+#. Author of the plugin
+#: nahnu-asset-scanner.php
+msgid "Nahnu Plugins"
+msgstr ""
+
+#. Author URI of the plugin
+#: nahnu-asset-scanner.php
+msgid "https://www.nahnuplugins.com"
+msgstr ""
+
+#: includes/class-abilities.php:46
+#: includes/class-admin.php:54
+msgid "Asset Scanner"
+msgstr ""
+
+#: includes/class-abilities.php:47
+msgid "Scan the front end for scripts, styles, cookies and domains, and test turning scripts and styles off, deferring or delaying them."
+msgstr ""
+
+#: includes/class-abilities.php:86
+msgid "Test rules: rule key => action. Keys are \"js:\" or \"css:\" followed by host and path without query string (e.g. \"js:example.com/wp-includes/js/jquery/jquery.min.js\"), or \"js#\"/\"css#\" followed by the element id of inline code (e.g. \"js#jquery-core-js-after\"). Get keys from get-page-assets. Actions: \"off\", \"defer\" or \"delay\" for script files; \"off\" or \"delay\" for inline scripts; \"off\" or \"defer\" for stylesheet files; \"off\" for inline styles. An empty string removes a rule (merge mode)."
+msgstr ""
+
+#: includes/class-abilities.php:100
+msgid "A front-end page on this site: a full URL or a path such as \"/about/\". Defaults to the home page."
+msgstr ""
+
+#: includes/class-abilities.php:104
+msgid "Get scan summary"
+msgstr ""
+
+#: includes/class-abilities.php:105
+msgid "Returns the latest scan: when it ran, how many pages, scripts, styles, cookies and domains it found, which page URLs were scanned, and how many test rules the current user has."
+msgstr ""
+
+#: includes/class-abilities.php:111
+msgid "Run scan"
+msgstr ""
+
+#: includes/class-abilities.php:112
+msgid "Scans up to 10 front-end pages and stores every script, stylesheet, cookie and external domain found, with the plugin behind each. Without input it scans the pages chosen on the Pages tab, or the home page plus recent pages and posts. Takes a few seconds per page. Read the results with get-results."
+msgstr ""
+
+#: includes/class-abilities.php:116
+msgid "Page URLs to scan."
+msgstr ""
+
+#: includes/class-abilities.php:117
+msgid "IDs of published posts or pages to scan."
+msgstr ""
+
+#: includes/class-abilities.php:126
+msgid "Get scan results"
+msgstr ""
+
+#: includes/class-abilities.php:127
+msgid "Lists results of the latest scan for one type: \"js\" (scripts), \"css\" (stylesheets), \"cookies\" (with category and the plugin or service that sets each one) or \"domains\" (external domains). Supports search, a first/third-party filter and paging."
+msgstr ""
+
+#: includes/class-abilities.php:144
+msgid "Get page assets"
+msgstr ""
+
+#: includes/class-abilities.php:145
+msgid "Renders one page and lists every script and stylesheet on it in page order, with the rule key to use in test rules, the plugin or theme behind it, whether it is third-party, whether it blocks rendering, and the action the current test rules give it."
+msgstr ""
+
+#: includes/class-abilities.php:156
+msgid "Get test rules"
+msgstr ""
+
+#: includes/class-abilities.php:157
+msgid "Returns the current user's saved test rules (the ones applied when they open a page with ?nahnuas_test=1)."
+msgstr ""
+
+#: includes/class-abilities.php:163
+msgid "Set test rules"
+msgstr ""
+
+#: includes/class-abilities.php:164
+msgid "Saves the current user's test rules. They only affect pages that user opens with ?nahnuas_test=1 while logged in, never visitors. Mode \"merge\" (default) adds or changes the given rules (\"\" removes one); \"replace\" replaces all rules (an empty object clears them)."
+msgstr ""
+
+#: includes/class-abilities.php:178
+msgid "Run test"
+msgstr ""
+
+#: includes/class-abilities.php:179
+msgid "Tests a page with scripts or styles turned off, deferred or delayed, without changing the live site. The server renders the page with the rules and returns what changed, render-blocking files before and after, and dependency warnings (scripts that will break because a file they need was held back). It also returns browser_url, a one-time link valid for 30 minutes: open it in a real browser, wait until the page shows \"Nahnu test report sent\", then call get-test-report with the token to get the JavaScript errors from the browser. Uses the saved test rules unless \"rules\" is given."
+msgstr ""
+
+#: includes/class-abilities.php:193
+msgid "Get test report"
+msgstr ""
+
+#: includes/class-abilities.php:194
+msgid "Returns a test run started by run-test: the server analysis and, once its browser_url has been opened in a browser, the JavaScript errors, whether delayed scripts ran, and the page load time."
+msgstr ""
+
+#: includes/class-abilities.php:252
+#: includes/class-admin.php:702
+msgid "Could not create the scan record."
+msgstr ""
+
+#: includes/class-abilities.php:398
+msgid "Open browser_url in a browser, wait until the page shows \"Nahnu test report sent\", then call get-test-report with this token."
+msgstr ""
+
+#: includes/class-abilities.php:412
+msgid "Unknown or expired test run. Start a new one with run-test."
+msgstr ""
+
+#: includes/class-abilities.php:468
+msgid "The URL must be a page on this site."
+msgstr ""
+
+#. translators: %s: error message.
+#: includes/class-abilities.php:508
+#, php-format
+msgid "The site could not load its own page: %s"
+msgstr ""
+
+#. translators: %d: HTTP status code.
+#: includes/class-abilities.php:517
+#, php-format
+msgid "The page (HTTP %d) was not rendered by WordPress with test mode. It may be served from a server cache or not be an HTML page."
+msgstr ""
+
+#: includes/class-admin.php:94
+msgid "Scanning…"
+msgstr ""
+
+#: includes/class-admin.php:95
+msgid "Scan complete"
+msgstr ""
+
+#: includes/class-admin.php:96
+msgid "Scan failed"
+msgstr ""
+
+#: includes/class-admin.php:97
+msgid "Scan cancelled"
+msgstr ""
+
+#: includes/class-admin.php:98
+msgid "No results found."
+msgstr ""
+
+#: includes/class-admin.php:99
+msgid "Delete all scan data? This cannot be undone."
+msgstr ""
+
+#: includes/class-admin.php:100
+#: includes/class-admin.php:937
+msgid "Settings saved."
+msgstr ""
+
+#: includes/class-admin.php:101
+msgid "Fetching…"
+msgstr ""
+
+#: includes/class-admin.php:102
+msgid "Refresh"
+msgstr ""
+
+#: includes/class-admin.php:103
+msgid "Network error. Please try again."
+msgstr ""
+
+#: includes/class-admin.php:104
+msgid "Test"
+msgstr ""
+
+#: includes/class-admin.php:105
+#: includes/class-test-mode.php:326
+msgid "On"
+msgstr ""
+
+#: includes/class-admin.php:106
+#: includes/class-admin.php:451
+#: includes/class-test-mode.php:327
+msgid "Off"
+msgstr ""
+
+#: includes/class-admin.php:107
+#: includes/class-admin.php:455
+#: includes/class-test-mode.php:328
+msgid "Defer"
+msgstr ""
+
+#: includes/class-admin.php:108
+#: includes/class-admin.php:459
+#: includes/class-test-mode.php:329
+msgid "Delay"
+msgstr ""
+
+#: includes/class-admin.php:109
+msgid "Test rule saved. Open a page in test mode to see the effect."
+msgstr ""
+
+#: includes/class-admin.php:110
+msgid "Test rule removed."
+msgstr ""
+
+#: includes/class-admin.php:111
+msgid "Inline code is tested from the front-end panel."
+msgstr ""
+
+#: includes/class-admin.php:112
+msgid "No test rules yet. Pick Off, Defer or Delay in the Scripts or Styles tab, or open a page in test mode and use the panel."
+msgstr ""
+
+#: includes/class-admin.php:113
+msgid "Remove"
+msgstr ""
+
+#: includes/class-admin.php:114
+msgid "Remove all of your test rules?"
+msgstr ""
+
+#: includes/class-admin.php:115
+msgid "Script"
+msgstr ""
+
+#: includes/class-admin.php:116
+msgid "Style"
+msgstr ""
+
+#: includes/class-admin.php:127
+#: includes/class-admin.php:797
+#: includes/class-admin.php:994
+msgid "Insufficient permissions."
+msgstr ""
+
+#: includes/class-admin.php:145
+msgid "by"
+msgstr ""
+
+#: includes/class-admin.php:151
+msgid "Test on front end"
+msgstr ""
+
+#: includes/class-admin.php:155
+msgid "Run Scan"
+msgstr ""
+
+#: includes/class-admin.php:168
+msgid "Idle — no scan yet"
+msgstr ""
+
+#. translators: date/time
+#: includes/class-admin.php:177
+#, php-format
+msgid "Last scan: %s"
+msgstr ""
+
+#: includes/class-admin.php:186
+#: includes/class-admin.php:192
+msgid "pages"
+msgstr ""
+
+#: includes/class-admin.php:189
+#: includes/class-admin.php:195
+msgid "cookies"
+msgstr ""
+
+#: includes/class-admin.php:190
+#: includes/class-admin.php:196
+msgid "domains"
+msgstr ""
+
+#: includes/class-admin.php:207
+msgid "Preparing scan…"
+msgstr ""
+
+#: includes/class-admin.php:210
+msgid "Cancel"
+msgstr ""
+
+#: includes/class-admin.php:227
+msgid "Pages"
+msgstr ""
+
+#: includes/class-admin.php:229
+#: includes/class-test-mode.php:319
+msgid "Scripts"
+msgstr ""
+
+#: includes/class-admin.php:230
+#: includes/class-test-mode.php:320
+msgid "Styles"
+msgstr ""
+
+#: includes/class-admin.php:231
+msgid "Cookies"
+msgstr ""
+
+#: includes/class-admin.php:232
+msgid "Domains"
+msgstr ""
+
+#: includes/class-admin.php:234
+#: includes/class-admin.php:540
+msgid "Test Lab"
+msgstr ""
+
+#: includes/class-admin.php:236
+msgid "Settings"
+msgstr ""
+
+#: includes/class-admin.php:237
+msgid "About"
+msgstr ""
+
+#: includes/class-admin.php:256
+msgid "Choose pages"
+msgstr ""
+
+#: includes/class-admin.php:257
+msgid "Tick up to 10 below, or leave all unticked to scan your latest content."
+msgstr ""
+
+#: includes/class-admin.php:261
+msgid "Run the scan"
+msgstr ""
+
+#: includes/class-admin.php:262
+msgid "See every script, style, cookie and domain, with the plugin behind it."
+msgstr ""
+
+#: includes/class-admin.php:266
+msgid "Test changes"
+msgstr ""
+
+#: includes/class-admin.php:267
+msgid "Turn files off, defer or delay them on the live page. Only you see it."
+msgstr ""
+
+#: includes/class-admin.php:272
+msgid "Pages to scan"
+msgstr ""
+
+#: includes/class-admin.php:273
+msgid "selected"
+msgstr ""
+
+#: includes/class-admin.php:277
+msgid "Search by title…"
+msgstr ""
+
+#: includes/class-admin.php:279
+msgid "All types"
+msgstr ""
+
+#: includes/class-admin.php:289
+msgid "Title"
+msgstr ""
+
+#: includes/class-admin.php:289
+msgid "Type"
+msgstr ""
+
+#: includes/class-admin.php:298
+#: includes/class-admin.php:676
+msgid "(no title)"
+msgstr ""
+
+#: includes/class-admin.php:305
+msgid "No published pages or posts found."
+msgstr ""
+
+#. translators: %s: total number of published items.
+#: includes/class-admin.php:315
+#, php-format
+msgid "Showing 1–10 of %s"
+msgstr ""
+
+#: includes/class-admin.php:332
+msgid "Clear all"
+msgstr ""
+
+#: includes/class-admin.php:334
+msgid "Selections persist across pages."
+msgstr ""
+
+#: includes/class-admin.php:335
+msgid "Save Selection"
+msgstr ""
+
+#: includes/class-admin.php:336
+msgid "Saved!"
+msgstr ""
+
+#: includes/class-admin.php:345
+msgid "Search JS files…"
+msgstr ""
+
+#: includes/class-admin.php:347
+#: includes/class-admin.php:365
+#: includes/class-admin.php:383
+#: includes/class-admin.php:401
+msgid "All sources"
+msgstr ""
+
+#: includes/class-admin.php:348
+#: includes/class-admin.php:366
+#: includes/class-admin.php:384
+#: includes/class-admin.php:402
+msgid "Third-party only"
+msgstr ""
+
+#: includes/class-admin.php:349
+#: includes/class-admin.php:367
+#: includes/class-admin.php:385
+#: includes/class-admin.php:403
+msgid "First-party only"
+msgstr ""
+
+#: includes/class-admin.php:363
+msgid "Search CSS files…"
+msgstr ""
+
+#: includes/class-admin.php:381
+msgid "Search cookies…"
+msgstr ""
+
+#: includes/class-admin.php:399
+msgid "Search domains…"
+msgstr ""
+
+#: includes/class-admin.php:424
+msgid "Test before you optimize"
+msgstr ""
+
+#: includes/class-admin.php:425
+msgid "Cache plugins can break a site when the wrong file is turned off, deferred or delayed. Try it here first: the page opens with your test rules and a panel to change them. Only you see it. Visitors and your cache are never affected."
+msgstr ""
+
+#: includes/class-admin.php:428
+msgid "Page to test"
+msgstr ""
+
+#: includes/class-admin.php:435
+msgid "Open in test mode"
+msgstr ""
+
+#. translators: %s: the query string that turns test mode on, e.g. ?nahnuas_test=1
+#: includes/class-admin.php:441
+#, php-format
+msgid "Or add %s to any page address while logged in, or use \"Test assets\" in the admin bar."
+msgstr ""
+
+#: includes/class-admin.php:452
+msgid "The file is not loaded. Shows whether anything on the page needs it."
+msgstr ""
+
+#: includes/class-admin.php:456
+msgid "Scripts run after the page HTML is read. Stylesheets load without blocking the first paint."
+msgstr ""
+
+#: includes/class-admin.php:460
+msgid "Scripts wait for the first scroll, tap, click or key press. Best for chat widgets, trackers and ads."
+msgstr ""
+
+#: includes/class-admin.php:466
+msgid "Your test rules"
+msgstr ""
+
+#: includes/class-admin.php:467
+msgid "Remove all"
+msgstr ""
+
+#: includes/class-admin.php:474
+msgid "AI agents & MCP"
+msgstr ""
+
+#: includes/class-admin.php:475
+msgid "Abilities API"
+msgstr ""
+
+#: includes/class-admin.php:478
+msgid "This plugin registers WordPress abilities, so an AI assistant connected through MCP (for example with the WordPress MCP Adapter) can scan your site and run these tests for you. Each ability requires an administrator account."
+msgstr ""
+
+#: includes/class-admin.php:480
+msgid "scan pages and read scripts, styles, cookies and domains."
+msgstr ""
+
+#: includes/class-admin.php:481
+msgid "every script and stylesheet on a page, with its rule key."
+msgstr ""
+
+#: includes/class-admin.php:482
+msgid "the rules you see in this tab."
+msgstr ""
+
+#: includes/class-admin.php:483
+msgid "render a page with rules, list render-blocking files and scripts that will break, and collect real JavaScript errors from a browser through a one-time link that expires after 30 minutes."
+msgstr ""
+
+#: includes/class-admin.php:485
+msgid "Try asking your assistant: \"Scan my home page, delay every third-party script in a test, and tell me what breaks.\""
+msgstr ""
+
+#: includes/class-admin.php:489
+msgid "When a page still works with a rule, make the same change in your cache or performance plugin (for example WP Rocket, LiteSpeed Cache, Perfmatters or FlyingPress). Rules here are saved for your user only and are never applied to visitors."
+msgstr ""
+
+#: includes/class-admin.php:497
+msgid "Scan Options"
+msgstr ""
+
+#: includes/class-admin.php:501
+msgid "Page timeout (seconds)"
+msgstr ""
+
+#: includes/class-admin.php:503
+msgid "5–120 seconds. Increase for slow pages."
+msgstr ""
+
+#: includes/class-admin.php:506
+msgid "Additional URLs to scan"
+msgstr ""
+
+#: includes/class-admin.php:508
+msgid "One URL per line. Use for pages not available in the picker (e.g. external checkout pages)."
+msgstr ""
+
+#: includes/class-admin.php:511
+msgid "Save"
+msgstr ""
+
+#: includes/class-admin.php:519
+msgid "Data"
+msgstr ""
+
+#: includes/class-admin.php:521
+msgid "Delete all scan data from the database. This cannot be undone."
+msgstr ""
+
+#: includes/class-admin.php:522
+msgid "Clear All Data"
+msgstr ""
+
+#: includes/class-admin.php:532
+msgid "Using with Cache &amp; Performance Plugins"
+msgstr ""
+
+#: includes/class-admin.php:541
+msgid "Preview any page with scripts or stylesheets turned off, deferred or delayed before you change your cache plugin. Add ?nahnuas_test=1 to a page address while logged in as an administrator. A panel lists every file on the page with the plugin behind it and shows any JavaScript errors your changes cause. Only you see the test; visitors always get the normal page."
+msgstr ""
+
+#: includes/class-admin.php:550
+msgid "JS Defer &amp; Delay"
+msgstr ""
+
+#: includes/class-admin.php:551
+msgid "The JS tab lists every script loaded on your pages with its file path, version, defer/async status, first- or third-party origin, and the plugin that owns it. Use it to decide which scripts are safe to defer or delay in WP Rocket, LiteSpeed Cache, NitroPack, or Hummingbird. First-party plugin scripts such as the WooCommerce cart usually need to load immediately; third-party trackers such as Google Analytics or Hotjar are good candidates for delay."
+msgstr ""
+
+#: includes/class-admin.php:560
+msgid "CSS Exclusions"
+msgstr ""
+
+#: includes/class-admin.php:561
+msgid "The CSS tab identifies every stylesheet and its owning plugin. When combining or minifying CSS causes layout breaks, copy the file path directly into your cache plugin's exclusion list — WP Rocket, LiteSpeed Cache, and W3 Total Cache all support path-based exclusions. Render-blocking stylesheets from page builders like Elementor or Divi typically need to stay excluded from aggressive minification."
+msgstr ""
+
+#: includes/class-admin.php:570
+msgid "Cache Bypass for Dynamic Pages"
+msgstr ""
+
+#: includes/class-admin.php:571
+msgid "The Cookies tab lists every cookie your site sets. Cache plugins use cookies to decide whether to serve a cached page or bypass the cache — e.g. WooCommerce cart cookies, WPML language cookies, and login cookies must all bypass the cache. This tab gives you the exact cookie names to enter into your cache plugin's bypass rules, replacing guesswork with a real scan."
+msgstr ""
+
+#: includes/class-admin.php:581
+msgid "Cookie Consent Configuration"
+msgstr ""
+
+#: includes/class-admin.php:582
+msgid "Before configuring Complianz, CookieYes, or Real Cookie Banner, run a scan to get a complete, categorized cookie inventory. The plugin identifies 600+ known cookies from 400+ plugins and services — each tagged as Necessary, Preferences, Analytics, or Marketing — so you can populate your consent management platform with accurate data rather than relying on a generic auto-scan."
+msgstr ""
+
+#: includes/class-admin.php:591
+msgid "Export &amp; Document"
+msgstr ""
+
+#: includes/class-admin.php:592
+msgid "Every tab has a CSV export. Use this to document your site's asset inventory, share a JS/CSS list with a developer optimizing your Core Web Vitals, or keep a record of which third-party scripts were present on a given date. Particularly useful for agencies managing multiple client sites."
+msgstr ""
+
+#: includes/class-admin.php:600
+msgid "Open Source Libraries & Credits"
+msgstr ""
+
+#: includes/class-admin.php:612
+msgid "600+ cookie patterns covering 400+ WordPress plugins and services, built and maintained as part of this plugin. Covers WooCommerce, membership plugins, LMS platforms, builders, security plugins, analytics services, ad networks, and more. No external API needed: the data is updated with plugin releases."
+msgstr ""
+
+#: includes/class-admin.php:624
+msgid "Built on WordPress core APIs: the WP HTTP API, dbDelta, the Options API, and admin-ajax. Follows WordPress coding standards and the plugin review guidelines."
+msgstr ""
+
+#. translators: 1: license name linked to the license text, 2: author name linked to the author website.
+#: includes/class-admin.php:637
+#, php-format
+msgid "Nahnu Asset Scanner is free software released under the %1$s license. Built with &#10084; by %2$s."
+msgstr ""
+
+#: includes/class-admin.php:728
+msgid "Missing scan ID or URL."
+msgstr ""
+
+#: includes/class-admin.php:733
+msgid "Invalid URL."
+msgstr ""
+
+#: includes/class-admin.php:750
+msgid "Missing scan ID."
+msgstr ""
+
+#: includes/class-admin.php:801
+#: includes/class-admin.php:997
+msgid "Your session expired. Reload the page and try again."
+msgstr ""
+
+#: includes/class-admin.php:921
+msgid "All scan data cleared."
+msgstr ""
+
+#: includes/class-scanner.php:204
+msgid "The page could not be fetched."
+msgstr ""
+
+#. translators: %d: HTTP status code, e.g. 404.
+#: includes/class-scanner.php:214
+#, php-format
+msgid "The page returned HTTP %d."
+msgstr ""
+
+#: includes/class-scanner.php:251
+msgid "The URL was rejected as unsafe."
+msgstr ""
+
+#: includes/class-test-mode.php:318
+msgid "Asset Test Mode"
+msgstr ""
+
+#: includes/class-test-mode.php:321
+msgid "Errors"
+msgstr ""
+
+#: includes/class-test-mode.php:322
+msgid "Filter by file or plugin…"
+msgstr ""
+
+#: includes/class-test-mode.php:323
+msgid "All"
+msgstr ""
+
+#: includes/class-test-mode.php:324
+msgid "Changed"
+msgstr ""
+
+#: includes/class-test-mode.php:325
+msgid "3rd-party"
+msgstr ""
+
+#: includes/class-test-mode.php:330
+msgid "Inline"
+msgstr ""
+
+#: includes/class-test-mode.php:331
+msgid "Inline code without an id cannot be targeted."
+msgstr ""
+
+#: includes/class-test-mode.php:332
+msgid "Apply & reload"
+msgstr ""
+
+#: includes/class-test-mode.php:333
+msgid "Saving…"
+msgstr ""
+
+#: includes/class-test-mode.php:334
+msgid "Reset all"
+msgstr ""
+
+#: includes/class-test-mode.php:335
+msgid "Unsaved changes"
+msgstr ""
+
+#: includes/class-test-mode.php:336
+msgid "Rules on"
+msgstr ""
+
+#: includes/class-test-mode.php:337
+msgid "Rules paused"
+msgstr ""
+
+#: includes/class-test-mode.php:338
+msgid "Compare with and without your rules."
+msgstr ""
+
+#: includes/class-test-mode.php:339
+msgid "Exit test mode"
+msgstr ""
+
+#: includes/class-test-mode.php:340
+msgid "Open scanner"
+msgstr ""
+
+#: includes/class-test-mode.php:341
+msgid "Quick actions"
+msgstr ""
+
+#: includes/class-test-mode.php:342
+msgid "All JS off"
+msgstr ""
+
+#: includes/class-test-mode.php:343
+msgid "Defer all JS"
+msgstr ""
+
+#: includes/class-test-mode.php:344
+msgid "Delay all JS"
+msgstr ""
+
+#: includes/class-test-mode.php:345
+msgid "Delay 3rd-party JS"
+msgstr ""
+
+#: includes/class-test-mode.php:346
+msgid "All CSS off"
+msgstr ""
+
+#: includes/class-test-mode.php:347
+msgid "Defer all CSS"
+msgstr ""
+
+#: includes/class-test-mode.php:348
+msgid "No JavaScript errors on this page."
+msgstr ""
+
+#: includes/class-test-mode.php:349
+msgid "Likely"
+msgstr ""
+
+#: includes/class-test-mode.php:350
+msgid "Errors that appear after a change usually mean that file is not safe to change."
+msgstr ""
+
+#: includes/class-test-mode.php:351
+msgid "Delayed scripts wait for the first scroll, tap, click or key press."
+msgstr ""
+
+#: includes/class-test-mode.php:352
+msgid "Delayed scripts have run."
+msgstr ""
+
+#: includes/class-test-mode.php:353
+msgid "Nothing matches."
+msgstr ""
+
+#: includes/class-test-mode.php:354
+msgid "Could not save. Please try again."
+msgstr ""
+
+#: includes/class-test-mode.php:355
+msgid "Minimize"
+msgstr ""
+
+#: includes/class-test-mode.php:356
+msgid "Open test panel"
+msgstr ""
+
+#: includes/class-test-mode.php:357
+msgid "Only you see these changes. Visitors get the normal page."
+msgstr ""
+
+#: includes/class-test-mode.php:358
+msgid "Off: not loaded at all."
+msgstr ""
+
+#: includes/class-test-mode.php:359
+msgid "Defer: JS runs after the HTML is parsed; CSS loads without blocking the page."
+msgstr ""
+
+#: includes/class-test-mode.php:360
+msgid "Delay: JS waits for the first user interaction."
+msgstr ""
+
+#: includes/class-test-mode.php:377
+msgid "Exit asset test"
+msgstr ""
+
+#: includes/class-test-mode.php:378
+msgid "Test assets"
+msgstr ""
+
+#. translators: %s: number of active test rules.
+#: includes/class-test-mode.php:381
+#, php-format
+msgid "(%s rule)"
+msgid_plural "(%s rules)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-test-mode.php:387
+msgid "Preview this page with scripts or styles turned off, deferred or delayed. Only you see it."
+msgstr ""
+
+#: includes/class-test-mode.php:547
+msgid "(inline, no id)"
+msgstr ""
+
+#. translators: 1: script that breaks, 2: script it needs.
+#: includes/class-test-mode.php:714
+#, php-format
+msgid "%1$s still loads but needs %2$s, which is off."
+msgstr ""
+
+#. translators: 1: script that breaks, 2: script it needs.
+#: includes/class-test-mode.php:716
+#, php-format
+msgid "%1$s runs right away but needs %2$s, which is delayed until the first interaction."
+msgstr ""
+
+#. translators: 1: script that breaks, 2: script it needs.
+#: includes/class-test-mode.php:718
+#, php-format
+msgid "%1$s runs right away but needs %2$s, which is deferred."
+msgstr ""
+
+#. translators: %s: theme name.
+#: includes/class-test-mode.php:823
+#, php-format
+msgid "%s (theme)"
+msgstr ""
+
+#: includes/class-test-mode.php:826
+msgid "WordPress core"
+msgstr ""
+
+#: includes/class-test-mode.php:899
+msgid "You do not have permission to do this."
+msgstr ""
+
+#: includes/class-test-mode.php:902
+msgid "Your session expired. Please reload the page."
+msgstr ""
+
+#: nahnu-asset-scanner.php:56
+msgid "makes no external HTTP requests and collects no data about your visitors. All cookie identification is done using data bundled within the plugin. Nothing is sent to any third-party service."
+msgstr ""
+
+#: nahnu-asset-scanner.php:67
+msgid "Open Scanner"
+msgstr ""

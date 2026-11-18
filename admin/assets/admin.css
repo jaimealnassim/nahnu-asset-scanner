@@ -1787,3 +1787,206 @@ td:hover .fas-copy-btn {
 .fas-btn--danger:hover {
 	background: #b91c1c;
 }
+
+/* ==========================================================================
+   1.0.2 redesign: buttons, tabs, steps, Test Lab
+   ========================================================================== */
+
+.fas-btn--solid {
+	background: var(--fas-primary);
+	color: #fff;
+	border: 1px solid var(--fas-primary);
+}
+.fas-btn--solid:hover,
+.fas-btn--solid:focus {
+	background: var(--fas-primary-dark);
+	color: #fff;
+}
+.fas-btn--onblue {
+	background: rgba(255,255,255,.12);
+	color: #fff;
+	border: 1px solid rgba(255,255,255,.45);
+}
+.fas-btn--onblue:hover,
+.fas-btn--onblue:focus {
+	background: rgba(255,255,255,.22);
+	color: #fff;
+}
+.fas-btn:disabled { opacity: .5; cursor: default; }
+
+/* Tabs: counts, separators, Test Lab accent */
+.fas-tab-count {
+	min-width: 20px;
+	padding: 1px 7px;
+	border-radius: 99px;
+	background: var(--fas-gray-200);
+	color: var(--fas-gray-600);
+	font-size: 11px;
+	line-height: 16px;
+	text-align: center;
+}
+.fas-tab-btn--active .fas-tab-count { background: var(--fas-primary-light); color: var(--fas-primary); }
+.fas-tab-count--test { background: var(--fas-amber); color: #fff; }
+.fas-tab-count[hidden] { display: none; }
+.fas-tab-sep { flex: 0 0 1px; align-self: center; height: 18px; margin: 0 6px 4px; background: var(--fas-gray-300); }
+.fas-tab-spacer { flex: 1 1 auto; }
+.fas-tab-btn--test { color: var(--fas-primary); }
+.fas-tab-btn--test::before {
+	content: "";
+	width: 14px;
+	height: 14px;
+	background: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M9 3h6M10 3v6.5L4.6 18.3A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.7L14 9.5V3'/%3E%3Cpath d='M7.5 15h9'/%3E%3C/svg%3E") center / contain no-repeat;
+	        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M9 3h6M10 3v6.5L4.6 18.3A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.7L14 9.5V3'/%3E%3Cpath d='M7.5 15h9'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Three-step guide */
+.fas-steps {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 12px;
+	margin: 0 0 22px;
+	padding: 0;
+	list-style: none;
+}
+.fas-step {
+	display: flex;
+	gap: 12px;
+	margin: 0;
+	padding: 14px 16px;
+	border: 1px solid var(--fas-gray-200);
+	border-radius: var(--fas-radius-lg);
+	background: var(--fas-gray-50);
+}
+.fas-step strong { display: block; font-size: 13.5px; color: var(--fas-gray-900); }
+.fas-step span:not(.fas-step__num) { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.45; color: var(--fas-gray-500); }
+.fas-step__num {
+	flex: 0 0 28px;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: #fff;
+	border: 2px solid var(--fas-gray-300);
+	color: var(--fas-gray-500);
+	font-weight: 700;
+	font-size: 13px;
+	line-height: 24px;
+	text-align: center;
+}
+.fas-step--current { border-color: #BFDBFE; background: var(--fas-primary-light); }
+.fas-step--current .fas-step__num { border-color: var(--fas-primary); background: var(--fas-primary); color: #fff; }
+.fas-step--done .fas-step__num { border-color: var(--fas-green); background: var(--fas-green); color: transparent; position: relative; }
+.fas-step--done .fas-step__num::after { content: "\2713"; position: absolute; inset: 0; color: #fff; }
+.fpp-intro p { font-weight: 700; color: var(--fas-gray-800); }
+
+/* Test column in Scripts / Styles */
+.fas-test-select {
+	width: 86px;
+	min-width: 0;
+	padding: 3px 26px 3px 8px !important;
+	border-radius: var(--fas-radius) !important;
+	font-size: 12px !important;
+	font-weight: 600;
+	min-height: 28px !important;
+}
+.fas-test-select--off   { border-color: #FCA5A5 !important; background-color: var(--fas-red-light) !important; color: #B91C1C !important; }
+.fas-test-select--defer { border-color: #93C5FD !important; background-color: var(--fas-primary-light) !important; color: var(--fas-primary) !important; }
+.fas-test-select--delay { border-color: #FCD34D !important; background-color: var(--fas-amber-light) !important; color: #B45309 !important; }
+.fas-test-na { color: var(--fas-gray-400); cursor: help; }
+
+/* Test Lab */
+.fas-lab-hero {
+	display: grid;
+	grid-template-columns: 1.3fr 1fr;
+	gap: 28px;
+	align-items: center;
+	margin-bottom: 18px;
+	padding: 22px 24px;
+	border-radius: var(--fas-radius-lg);
+	background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%);
+	border: 1px solid #DBEAFE;
+}
+.fas-lab-hero h2 { margin: 0 0 6px; font-size: 18px; color: var(--fas-gray-900); }
+.fas-lab-hero p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--fas-gray-600); }
+.fas-lab-open label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 700; color: var(--fas-gray-700); }
+.fas-lab-open__row { display: flex; gap: 8px; }
+.fas-lab-open__row select { flex: 1 1 auto; min-width: 0; }
+.fas-lab-open__row .fas-btn { padding: 9px 14px; white-space: nowrap; }
+.fas-lab-open__tip { display: block; margin-top: 8px; font-size: 12px; color: var(--fas-gray-500); }
+.fas-lab-open__tip code { font-size: 11.5px; }
+
+.fas-lab-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+.fas-lab-mode { padding: 12px 14px; border: 1px solid var(--fas-gray-200); border-left-width: 4px; border-radius: var(--fas-radius); }
+.fas-lab-mode strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.fas-lab-mode span { font-size: 12.5px; line-height: 1.45; color: var(--fas-gray-500); }
+.fas-lab-mode--off   { border-left-color: var(--fas-red); }
+.fas-lab-mode--defer { border-left-color: var(--fas-primary); }
+.fas-lab-mode--delay { border-left-color: var(--fas-amber); }
+
+.fas-card__header-action { margin-left: auto; }
+.fas-lab-rules .fas-table { margin: 0; border: 0; }
+.fas-lab-rules .fas-table td:last-child { text-align: right; }
+.fas-lab-file { display: block; font-size: 13px; }
+.fas-lab-path { display: block; max-width: 560px; overflow: hidden; font-size: 12px; color: var(--fas-gray-500); text-overflow: ellipsis; white-space: nowrap; }
+.fas-rule { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+.fas-rule--off   { background: var(--fas-red-light); color: #B91C1C; }
+.fas-rule--defer { background: var(--fas-primary-light); color: var(--fas-primary); }
+.fas-rule--delay { background: var(--fas-amber-light); color: #B45309; }
+.fas-tag--js  { background: #FEF9C3; color: #854D0E; }
+.fas-tag--css { background: #E0E7FF; color: #3730A3; }
+.fas-lab-note { margin: 14px 2px 0; font-size: 12.5px; color: var(--fas-gray-500); }
+
+/* Toast */
+.fas-toast {
+	position: fixed;
+	right: 24px;
+	bottom: 24px;
+	z-index: 100000;
+	max-width: 380px;
+	padding: 11px 16px;
+	border-radius: var(--fas-radius-lg);
+	background: var(--fas-gray-900);
+	color: #fff;
+	font-size: 13px;
+	box-shadow: var(--fas-shadow-md);
+	opacity: 0;
+	transform: translateY(8px);
+	pointer-events: none;
+	transition: opacity .2s ease, transform .2s ease;
+}
+.fas-toast--show { opacity: 1; transform: none; }
+.fas-toast--error { background: #B91C1C; }
+
+@media (max-width: 960px) {
+	.fas-steps, .fas-lab-modes, .fas-lab-hero { grid-template-columns: 1fr; }
+	.fas-tab-spacer { display: none; }
+}
+
+/* Keep the Test column visible when the table scrolls sideways. */
+#fas-table-js .fas-table th:last-child,
+#fas-table-js .fas-table td:last-child,
+#fas-table-css .fas-table th:last-child,
+#fas-table-css .fas-table td:last-child {
+	position: sticky;
+	right: 0;
+	z-index: 1;
+	background: #fff;
+	box-shadow: -8px 0 8px -8px rgba(0,0,0,.18);
+}
+#fas-table-js .fas-table th:last-child,
+#fas-table-css .fas-table th:last-child { background: var(--fas-gray-50); }
+.fas-page select.fas-test-select {
+	height: 30px !important;
+	min-height: 30px !important;
+	line-height: 1.2 !important;
+	background-position: right 6px center !important;
+}
+
+/* Test Lab: AI & MCP card */
+.fas-lab-ai { margin-top: 18px; }
+.fas-lab-ai .fas-card__body { padding: 16px 20px; font-size: 13px; color: var(--fas-gray-700); }
+.fas-lab-ai .fas-card__body p { margin: 0 0 10px; }
+.fas-lab-ai__list { margin: 0 0 12px 18px; list-style: disc; }
+.fas-lab-ai__list li { margin-bottom: 4px; }
+.fas-lab-ai__list code { font-size: 12px; }
+.fas-lab-ai__try { padding: 10px 12px; border-radius: var(--fas-radius); background: var(--fas-primary-light); color: var(--fas-primary-dark); font-style: italic; }
